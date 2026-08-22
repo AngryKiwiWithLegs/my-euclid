@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, SavePracticeResponseInput } from "./types.js";
+import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 
@@ -21,6 +21,8 @@ contextBridge.exposeInMainWorld("myEuclid", {
   practice: {
     saveResponse: (input: SavePracticeResponseInput): Promise<PracticeSessionDetail> => ipcRenderer.invoke("practice:save-response", input),
     selectPaperAttachments: (input: { sessionId?: string; referenceKey: string; title: string }): Promise<{ session?: PracticeSessionDetail; cancelled?: boolean }> => ipcRenderer.invoke("practice:select-paper-attachments", input),
+    saveInkResponse: (input: SaveInkResponseInput): Promise<InkSaveResult> => ipcRenderer.invoke("practice:save-ink-response", input),
+    getInkResponse: (responseId: string): Promise<InkResponseDetail | null> => ipcRenderer.invoke("practice:get-ink-response", responseId),
   },
   backup: {
     export: (): Promise<BackupExportResult> => ipcRenderer.invoke("backup:export"),

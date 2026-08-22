@@ -3,10 +3,10 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archive.js";
 import { exportBackup, preflightBackup, restoreBackup } from "./backup.js";
-import { databaseHealth, getDatabase, listImportJobs } from "./database.js";
+import { databaseHealth, getDatabase, getInkResponse, listImportJobs, saveInkResponse } from "./database.js";
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { ImportKind, ImportResult, QuestionDraft, SavePracticeResponseInput } from "./types.js";
+import type { ImportKind, ImportResult, QuestionDraft, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -47,6 +47,13 @@ app.whenReady().then(async () => {
     if (input.content.length > 500_000) throw new Error("单次作答文本超过保存限制。");
     return saveResponse(app, input);
   });
+  ipcMain.handle("practice:save-ink-response", (_event, input: SaveInkResponseInput) => {
+    if (!input || !["draft", "submitted"].includes(input.status) || !Number.isFinite(input.canvasWidth) || !Number.isFinite(input.canvasHeight)) throw new Error("笔迹保存参数无效。");
+    if (input.layers.length > 16 || input.layers.reduce((count, layer) => count + layer.strokes.length, 0) > 4_000) throw new Error("笔迹图层或笔画数量超过本地保存限制。");
+    if (input.layers.some(layer => layer.strokes.some(stroke => stroke.points.length > 10_000 || stroke.points.some(point => !Number.isFinite(point.x) || !Number.isFinite(point.y) || !Number.isFinite(point.t))))) throw new Error("笔迹点序列包含无效数据。");
+    return saveInkResponse(app, input);
+  });
+  ipcMain.handle("practice:get-ink-response", (_event, responseId: string) => getInkResponse(app, responseId));
   ipcMain.handle("practice:select-paper-attachments", async (_event, input: { sessionId?: string; referenceKey: string; title: string }) => {
     const result = await dialog.showOpenDialog({ title: "选择纸质答案附件", buttonLabel: "归档到当前作答", filters: responseFileFilters, properties: ["openFile", "multiSelections"] });
     if (result.canceled) return { cancelled: true };

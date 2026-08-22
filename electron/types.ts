@@ -109,6 +109,41 @@ export interface SavePracticeResponseInput {
   status: "draft" | "submitted";
 }
 
+export interface InkPoint { x: number; y: number; pressure: number; t: number; }
+
+export interface InkStrokeInput {
+  id?: string;
+  ordinal: number;
+  tool: "pen" | "eraser";
+  color: string;
+  width: number;
+  points: InkPoint[];
+}
+
+export interface InkLayerInput {
+  id?: string;
+  title: string;
+  ordinal: number;
+  visible: boolean;
+  strokes: InkStrokeInput[];
+}
+
+export interface SaveInkResponseInput {
+  sessionId?: string;
+  referenceKey: string;
+  title: string;
+  status: "draft" | "submitted";
+  canvasWidth: number;
+  canvasHeight: number;
+  previewSvg: string;
+  layers: InkLayerInput[];
+}
+
+export interface InkStroke extends InkStrokeInput { id: string; }
+export interface InkLayer extends Omit<InkLayerInput, "strokes" | "id"> { id: string; strokes: InkStroke[]; }
+export interface InkResponseDetail { responseId: string; sessionId: string; canvasWidth: number; canvasHeight: number; previewSvg: string; createdAt: string; layers: InkLayer[]; }
+export interface InkSaveResult { session: PracticeSessionDetail; ink: InkResponseDetail; }
+
 export interface BackupSummary {
   backupId: string;
   createdAt: string;

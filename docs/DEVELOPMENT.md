@@ -10,6 +10,8 @@
 
 本地备份入口会生成 `*.myeuclid-backup.zip`。备份含 SQLite 数据库、题源原件、答卷附件及带 SHA-256 的清单；恢复前必须完成文件路径和哈希预检。恢复采用覆盖替换策略，主进程会先创建当前档案的自动恢复点。端到端验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-practice-backup.mjs`。
 
+训练页的“手写板书”现已提供 Pointer Events 画布。它保留图层、归一化笔画坐标、压力、相对时间和 SVG 快照，支持画笔、橡皮擦、撤销、重做、清空与按笔画顺序回放。保存时会创建独立的 `handwritten` 答卷版本；由于全部笔迹数据位于 SQLite 中，既有备份与恢复不需要额外配置。端到端验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ink-flow.mjs`。
+
 ## 本地运行
 
 ```bash

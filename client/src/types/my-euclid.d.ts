@@ -19,6 +19,10 @@ declare global {
   interface MyEuclidBackupSummary { backupId: string; createdAt: string; documentCount: number; responseCount: number; attachmentCount: number; fileCount: number; }
   interface MyEuclidBackupSelection extends MyEuclidBackupSummary { token: string; fileName: string; }
   interface MyEuclidBackupExport extends MyEuclidBackupSummary { outputName: string; cancelled?: boolean; }
+  interface MyEuclidInkPoint { x: number; y: number; pressure: number; t: number; }
+  interface MyEuclidInkStroke { id?: string; ordinal: number; tool: "pen" | "eraser"; color: string; width: number; points: MyEuclidInkPoint[]; }
+  interface MyEuclidInkLayer { id?: string; title: string; ordinal: number; visible: boolean; strokes: MyEuclidInkStroke[]; }
+  interface MyEuclidInkResponse { responseId: string; sessionId: string; canvasWidth: number; canvasHeight: number; previewSvg: string; createdAt: string; layers: Array<MyEuclidInkLayer & { id: string; strokes: Array<MyEuclidInkStroke & { id: string }> }>; }
   interface Window {
     myEuclid?: {
       archive: {
@@ -35,6 +39,8 @@ declare global {
       practice: {
         saveResponse: (input: { sessionId?: string; referenceKey: string; title: string; answerFormat: "keyboard" | "handwritten"; content: string; status: "draft" | "submitted" }) => Promise<MyEuclidPracticeSession>;
         selectPaperAttachments: (input: { sessionId?: string; referenceKey: string; title: string }) => Promise<{ session?: MyEuclidPracticeSession; cancelled?: boolean }>;
+        saveInkResponse: (input: { sessionId?: string; referenceKey: string; title: string; status: "draft" | "submitted"; canvasWidth: number; canvasHeight: number; previewSvg: string; layers: MyEuclidInkLayer[] }) => Promise<{ session: MyEuclidPracticeSession; ink: MyEuclidInkResponse }>;
+        getInkResponse: (responseId: string) => Promise<MyEuclidInkResponse | null>;
       };
       backup: {
         export: () => Promise<MyEuclidBackupExport | { cancelled: true }>;

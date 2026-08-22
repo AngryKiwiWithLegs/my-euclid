@@ -3,6 +3,7 @@
  * 题面与证据优先，使用温暖档案纸、深海军蓝和朱砂红建立克制层次。
  */
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { InkCanvas } from "@/components/InkCanvas";
 import {
   Archive,
   ArrowLeft,
@@ -176,7 +177,7 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
 }
 
 function TrainingView({ initialId, backToLibrary, onSubmit, notify }: { initialId: string; backToLibrary: () => void; onSubmit: () => void; notify: (message: string) => void }) {
-  const [mode, setMode] = useState("键盘作答");
+  const [mode, setMode] = useState(() => new URLSearchParams(window.location.search).get("mode") === "ink" ? "手写板书" : "键盘作答");
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
   const [session, setSession] = useState<MyEuclidPracticeSession | null>(null);
@@ -199,12 +200,21 @@ function TrainingView({ initialId, backToLibrary, onSubmit, notify }: { initialI
       if (result.session) { setSession(result.session); notify("纸质答案已归档到本次作答"); }
     } catch (error) { notify(error instanceof Error ? error.message : "纸质答案归档失败"); } finally { setIsSaving(false); }
   };
+  const saveInk = async (payload: { canvasWidth: number; canvasHeight: number; previewSvg: string; layers: MyEuclidInkLayer[] }, status: "draft" | "submitted") => {
+    if (!window.myEuclid) { notify("浏览器预览仅展示画布；请启动桌面版本保存笔迹档案。"); return; }
+    try {
+      setIsSaving(true);
+      const result = await window.myEuclid.practice.saveInkResponse({ sessionId: session?.id, referenceKey: task.id, title: `${task.source} · ${task.number}`, status, ...payload });
+      setSession(result.session);
+      if (status === "submitted") { setSubmitted(true); onSubmit(); } else notify("笔迹草稿已写入本地档案");
+    } catch (error) { notify(error instanceof Error ? error.message : "笔迹保存失败"); } finally { setIsSaving(false); }
+  };
   const attachmentCount = session?.responses.flatMap(response => response.attachments).length ?? 0;
   return <div className="training-view"><button className="back-link" onClick={backToLibrary}><ArrowLeft size={16} /> 返回题库档案</button><div className="training-top"><div><p className="eyebrow">TRAINING SESSION · {task.id}</p><h2>{task.source} · {task.number}</h2></div><div className="timer-block"><Clock3 size={18} /><strong>00:00</strong><span>本次会话</span></div></div>
     <div className="training-grid"><article className="problem-sheet"><div className="sheet-label"><span>题面</span><span>原件回链将在导入后显示</span></div><h3>{task.title}</h3><p>{task.text}</p><div className="math-block">a<sub>n+1</sub> = f(a<sub>n</sub>), &nbsp; n ∈ ℕ<sup>+</sup></div><p>请写出完整推理链，并说明你所使用的关键不变量或归纳结构。</p><div className="sheet-tags">{task.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}<span className="tag proof-tag">需要完整证明</span></div></article>
       <aside className="answer-panel"><div className="answer-head"><div><p className="eyebrow">YOUR WORK</p><h3>作答记录</h3></div><span className="autosave">{session ? <><CheckCircle2 size={14} /> 已保存 {session.responses.length} 个版本</> : "尚未保存"}</span></div><div className="answer-modes">{["键盘作答", "手写板书", "上传纸质答案"].map(item => <button key={item} className={mode === item ? "is-selected" : ""} onClick={() => setMode(item)}>{item === "键盘作答" ? <Keyboard size={15} /> : item === "手写板书" ? <MousePointer2 size={15} /> : <ImageUp size={15} />}{item}</button>)}</div>
-        {mode === "上传纸质答案" ? <div className="input-placeholder"><ImageUp size={26} /><strong>纸质答案附件</strong><p>选择 PDF、扫描件或照片后，文件会复制到本地档案，并绑定到本次作答。</p><button onClick={attachPaper} disabled={isSaving}>{isSaving ? "正在归档…" : "选择纸质答案"}</button>{attachmentCount ? <small>已关联 {attachmentCount} 个附件</small> : null}</div> : <><textarea value={answer} onChange={e => setAnswer(e.target.value)} onBlur={() => void save("draft")} placeholder={mode === "键盘作答" ? "在这里写下证明。公式可以使用 LaTeX 语法，例如 \frac{a}{b}。" : "记录手写板书的要点、页码或补充说明；数位板笔迹画布将在后续版本叠加保存。"} /><p className="session-hint">{mode === "手写板书" ? "当前先将板书说明保存为独立版本；笔迹画布与图层导出将在后续版本加入。" : "离开输入框会自动存草稿；每次保存均保留为独立版本。"}</p></>}
-        <div className="answer-actions"><button className="secondary-button" onClick={() => setAnswer("")}><Undo2 size={15} /> 清空草稿</button><button className="secondary-button" onClick={() => void save("draft")} disabled={isSaving || mode === "上传纸质答案"}><Save size={15} /> 保存草稿</button><button className="primary-button" onClick={() => void save("submitted")} disabled={isSaving || mode === "上传纸质答案"}><Send size={15} /> 提交并分析</button></div>
+        {mode === "上传纸质答案" ? <div className="input-placeholder"><ImageUp size={26} /><strong>纸质答案附件</strong><p>选择 PDF、扫描件或照片后，文件会复制到本地档案，并绑定到本次作答。</p><button onClick={attachPaper} disabled={isSaving}>{isSaving ? "正在归档…" : "选择纸质答案"}</button>{attachmentCount ? <small>已关联 {attachmentCount} 个附件</small> : null}</div> : mode === "手写板书" ? <InkCanvas onSave={saveInk} isSaving={isSaving} /> : <><textarea value={answer} onChange={e => setAnswer(e.target.value)} onBlur={() => void save("draft")} placeholder="在这里写下证明。公式可以使用 LaTeX 语法，例如 \frac{a}{b}。" /><p className="session-hint">离开输入框会自动存草稿；每次保存均保留为独立版本。</p></>}
+        {mode !== "手写板书" && <div className="answer-actions"><button className="secondary-button" onClick={() => setAnswer("")}><Undo2 size={15} /> 清空草稿</button><button className="secondary-button" onClick={() => void save("draft")} disabled={isSaving || mode === "上传纸质答案"}><Save size={15} /> 保存草稿</button><button className="primary-button" onClick={() => void save("submitted")} disabled={isSaving || mode === "上传纸质答案"}><Send size={15} /> 提交并分析</button></div>}
         {submitted && <div className="assessment-card"><div><p className="eyebrow">ASSESSMENT PREVIEW</p><h4>已进入评分队列</h4></div><span>需 AI 评阅</span><p>桌面版会将本题、作答、评分依据与参考解法组合为一次可审阅的分析任务，并写入答卷报告。</p></div>}
       </aside>
     </div>
@@ -296,7 +306,7 @@ function TutorModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function Home() {
-  const [active, setActive] = useState<View>("工作台");
+  const [active, setActive] = useState<View>(() => new URLSearchParams(window.location.search).get("view") === "training" ? "训练会话" : "工作台");
   const [importKind, setImportKind] = useState<ImportKind>(null);
   const [trainingId, setTrainingId] = useState("E-2025-07b");
   const [tutorOpen, setTutorOpen] = useState(false);
