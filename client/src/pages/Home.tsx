@@ -175,17 +175,36 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
     </div></div>;
 }
 
-function TrainingView({ initialId, backToLibrary, onSubmit }: { initialId: string; backToLibrary: () => void; onSubmit: () => void }) {
+function TrainingView({ initialId, backToLibrary, onSubmit, notify }: { initialId: string; backToLibrary: () => void; onSubmit: () => void; notify: (message: string) => void }) {
   const [mode, setMode] = useState("键盘作答");
   const [answer, setAnswer] = useState("");
   const [submitted, setSubmitted] = useState(false);
+  const [session, setSession] = useState<MyEuclidPracticeSession | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
   const task = questions.find(q => q.id === initialId) ?? questions[0];
-  const submit = () => { setSubmitted(true); onSubmit(); };
+  const save = async (status: "draft" | "submitted") => {
+    if (!window.myEuclid) { if (status === "submitted") { setSubmitted(true); onSubmit(); } return; }
+    try {
+      setIsSaving(true);
+      const next = await window.myEuclid.practice.saveResponse({ sessionId: session?.id, referenceKey: task.id, title: `${task.source} · ${task.number}`, answerFormat: mode === "手写板书" ? "handwritten" : "keyboard", content: answer, status });
+      setSession(next);
+      if (status === "submitted") { setSubmitted(true); onSubmit(); } else notify("草稿已写入本地档案");
+    } catch (error) { notify(error instanceof Error ? error.message : "作答保存失败"); } finally { setIsSaving(false); }
+  };
+  const attachPaper = async () => {
+    if (!window.myEuclid) { setAnswer("已添加一份待识别的纸质作答附件。"); return; }
+    try {
+      setIsSaving(true);
+      const result = await window.myEuclid.practice.selectPaperAttachments({ sessionId: session?.id, referenceKey: task.id, title: `${task.source} · ${task.number}` });
+      if (result.session) { setSession(result.session); notify("纸质答案已归档到本次作答"); }
+    } catch (error) { notify(error instanceof Error ? error.message : "纸质答案归档失败"); } finally { setIsSaving(false); }
+  };
+  const attachmentCount = session?.responses.flatMap(response => response.attachments).length ?? 0;
   return <div className="training-view"><button className="back-link" onClick={backToLibrary}><ArrowLeft size={16} /> 返回题库档案</button><div className="training-top"><div><p className="eyebrow">TRAINING SESSION · {task.id}</p><h2>{task.source} · {task.number}</h2></div><div className="timer-block"><Clock3 size={18} /><strong>00:00</strong><span>本次会话</span></div></div>
     <div className="training-grid"><article className="problem-sheet"><div className="sheet-label"><span>题面</span><span>原件回链将在导入后显示</span></div><h3>{task.title}</h3><p>{task.text}</p><div className="math-block">a<sub>n+1</sub> = f(a<sub>n</sub>), &nbsp; n ∈ ℕ<sup>+</sup></div><p>请写出完整推理链，并说明你所使用的关键不变量或归纳结构。</p><div className="sheet-tags">{task.tags.map(tag => <span key={tag} className="tag">{tag}</span>)}<span className="tag proof-tag">需要完整证明</span></div></article>
-      <aside className="answer-panel"><div className="answer-head"><div><p className="eyebrow">YOUR WORK</p><h3>作答记录</h3></div><span className="autosave"><CheckCircle2 size={14} /> 本次会话已保存</span></div><div className="answer-modes">{["键盘作答", "手写板书", "上传纸质答案"].map(item => <button key={item} className={mode === item ? "is-selected" : ""} onClick={() => setMode(item)}>{item === "键盘作答" ? <Keyboard size={15} /> : item === "手写板书" ? <MousePointer2 size={15} /> : <ImageUp size={15} />}{item}</button>)}</div>
-        {mode === "键盘作答" ? <textarea value={answer} onChange={e => setAnswer(e.target.value)} placeholder="在这里写下证明。公式可以使用 LaTeX 语法，例如 \frac{a}{b}。" /> : <div className="input-placeholder"><PenLine size={26} /><strong>{mode === "手写板书" ? "手写画布" : "纸质答案上传"}</strong><p>{mode === "手写板书" ? "桌面客户端将连接触控板与数位板笔迹。" : "拖入图片或调用摄像头拍摄答案后，可与本题绑定。"}</p><button onClick={() => setAnswer("已添加一份待识别的纸质作答附件。")}>{mode === "手写板书" ? "新建板书" : "选择答案图片"}</button></div>}
-        <div className="answer-actions"><button className="secondary-button" onClick={() => setAnswer("")}><Undo2 size={15} /> 清空草稿</button><button className="primary-button" onClick={submit}><Send size={15} /> 提交并分析</button></div>
+      <aside className="answer-panel"><div className="answer-head"><div><p className="eyebrow">YOUR WORK</p><h3>作答记录</h3></div><span className="autosave">{session ? <><CheckCircle2 size={14} /> 已保存 {session.responses.length} 个版本</> : "尚未保存"}</span></div><div className="answer-modes">{["键盘作答", "手写板书", "上传纸质答案"].map(item => <button key={item} className={mode === item ? "is-selected" : ""} onClick={() => setMode(item)}>{item === "键盘作答" ? <Keyboard size={15} /> : item === "手写板书" ? <MousePointer2 size={15} /> : <ImageUp size={15} />}{item}</button>)}</div>
+        {mode === "上传纸质答案" ? <div className="input-placeholder"><ImageUp size={26} /><strong>纸质答案附件</strong><p>选择 PDF、扫描件或照片后，文件会复制到本地档案，并绑定到本次作答。</p><button onClick={attachPaper} disabled={isSaving}>{isSaving ? "正在归档…" : "选择纸质答案"}</button>{attachmentCount ? <small>已关联 {attachmentCount} 个附件</small> : null}</div> : <><textarea value={answer} onChange={e => setAnswer(e.target.value)} onBlur={() => void save("draft")} placeholder={mode === "键盘作答" ? "在这里写下证明。公式可以使用 LaTeX 语法，例如 \frac{a}{b}。" : "记录手写板书的要点、页码或补充说明；数位板笔迹画布将在后续版本叠加保存。"} /><p className="session-hint">{mode === "手写板书" ? "当前先将板书说明保存为独立版本；笔迹画布与图层导出将在后续版本加入。" : "离开输入框会自动存草稿；每次保存均保留为独立版本。"}</p></>}
+        <div className="answer-actions"><button className="secondary-button" onClick={() => setAnswer("")}><Undo2 size={15} /> 清空草稿</button><button className="secondary-button" onClick={() => void save("draft")} disabled={isSaving || mode === "上传纸质答案"}><Save size={15} /> 保存草稿</button><button className="primary-button" onClick={() => void save("submitted")} disabled={isSaving || mode === "上传纸质答案"}><Send size={15} /> 提交并分析</button></div>
         {submitted && <div className="assessment-card"><div><p className="eyebrow">ASSESSMENT PREVIEW</p><h4>已进入评分队列</h4></div><span>需 AI 评阅</span><p>桌面版会将本题、作答、评分依据与参考解法组合为一次可审阅的分析任务，并写入答卷报告。</p></div>}
       </aside>
     </div>
@@ -238,6 +257,38 @@ function ImportModal({ kind, onClose, onCompleted, openTraining, desktopImport }
   return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">LOCAL IMPORT · STEP {step} / 2</p><h2>{title}</h2>{step === 1 ? <><p className="modal-copy">原始文件会保留在本地。{isPaper ? "提交后将识别页面、题号与手写作答区域；审核后进入与在线作答一致的评分流程。" : "导入后将生成 OCR、切分和标签建议，供你逐项审核。"}</p>{window.myEuclid ? <button className="native-file-button" onClick={complete} disabled={isImporting}><FolderOpen size={23} /><span><strong>{isImporting ? "正在归档本地文件…" : "从本机选择资料"}</strong><small>通过 macOS 原生文件选择器导入</small></span><ChevronRight size={17} /></button> : <><label className="drop-zone"><input type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.txt,.md" onChange={handleFile} /><Upload size={24} /><strong>{fileName || "选择或拖拽文件"}</strong><span>支持 PDF、图片、扫描件、文本</span></label><div className="import-divider"><span>或</span></div><label className="url-field"><Link size={16} /><input value={url} onChange={e => setUrl(e.target.value)} placeholder="粘贴资料或 PDF 链接" /></label></>}{importError && <p className="import-error"><CircleHelp size={14} /> {importError}</p>}<div className="modal-actions"><button className="secondary-button" onClick={onClose}>取消</button>{!window.myEuclid && <button className="primary-button" disabled={!fileName && !url} onClick={complete}>建立演示任务<ChevronRight size={15} /></button>}</div></> : <div className="import-progress"><CheckCircle2 size={32} /><h3>{isPaper ? "已建立答卷审核任务" : "已建立资料审核任务"}</h3><p>{isPaper ? "下一步会按页识别题号、手写区域和作答归属。" : "下一步会显示页码、切分边界、OCR 文本与标签草案。"}</p><div className="progress-steps"><span className="done"><Check size={13} /> 原件归档</span><span>等待 OCR</span><span>审核切分</span></div><button className="primary-button wide-button" onClick={onClose}>返回工作台</button></div>}</div></div>;
 }
 
+function BackupModal({ onClose, notify }: { onClose: () => void; notify: (message: string) => void }) {
+  const [selection, setSelection] = useState<MyEuclidBackupSelection | null>(null);
+  const [busy, setBusy] = useState(false);
+  const exportBackup = async () => {
+    if (!window.myEuclid) { notify("浏览器预览不访问本地档案；请启动桌面版本。"); return; }
+    try {
+      setBusy(true);
+      const result = await window.myEuclid.backup.export();
+      if ("outputName" in result) notify(`已导出本地备份：${result.outputName}`);
+    } catch (error) { notify(error instanceof Error ? error.message : "备份导出失败"); } finally { setBusy(false); }
+  };
+  const selectRestore = async () => {
+    if (!window.myEuclid) { notify("浏览器预览不访问本地档案；请启动桌面版本。"); return; }
+    try {
+      setBusy(true);
+      const result = await window.myEuclid.backup.selectForRestore();
+      if (result.selection) setSelection(result.selection);
+    } catch (error) { notify(error instanceof Error ? error.message : "备份预检失败"); } finally { setBusy(false); }
+  };
+  const restore = async () => {
+    if (!selection || !window.myEuclid) return;
+    try {
+      setBusy(true);
+      await window.myEuclid.backup.restore(selection.token);
+      notify("备份已恢复，工作台将重新加载本地档案");
+      onClose();
+      window.setTimeout(() => window.location.reload(), 800);
+    } catch (error) { notify(error instanceof Error ? error.message : "备份恢复失败"); } finally { setBusy(false); }
+  };
+  return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card backup-modal"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">LOCAL BACKUP · RESTORE</p><h2>本地备份与恢复</h2><p className="modal-copy">导出包包含 SQLite、题源原件、答卷附件与校验清单。恢复会覆盖当前本地档案，并在替换前自动保留恢复点。</p><div className="backup-actions"><button className="native-file-button" onClick={exportBackup} disabled={busy}><Download size={22} /><span><strong>导出当前档案</strong><small>生成可迁移、可校验的备份包</small></span><ChevronRight size={17} /></button><button className="native-file-button" onClick={selectRestore} disabled={busy}><Upload size={22} /><span><strong>选择备份包并预检</strong><small>先校验文件与清单，不会立即覆盖</small></span><ChevronRight size={17} /></button></div>{selection && <div className="restore-preflight"><p className="eyebrow">RESTORE PREVIEW</p><h3>{selection.fileName}</h3><div><span>{selection.documentCount} 份资料</span><span>{selection.responseCount} 个答卷版本</span><span>{selection.attachmentCount} 个附件</span></div><p>此操作将覆盖当前本地档案。请确认已导出需要保留的最新数据。</p><button className="primary-button wide-button destructive-action" onClick={restore} disabled={busy}>确认覆盖并恢复</button></div>}<div className="modal-actions"><button className="secondary-button" onClick={onClose}>关闭</button></div></div></div>;
+}
+
 function TutorModal({ onClose }: { onClose: () => void }) {
   const [stage, setStage] = useState(0);
   const stages = ["先判断：题设中的哪个量在递推过程中最可能保持不变？", "很好。接着尝试将相邻两项的关系改写为差分或比值形式。", "最后，把你找到的量代回初始条件；这会把猜想转化为完整证明。"]; 
@@ -249,6 +300,7 @@ export default function Home() {
   const [importKind, setImportKind] = useState<ImportKind>(null);
   const [trainingId, setTrainingId] = useState("E-2025-07b");
   const [tutorOpen, setTutorOpen] = useState(false);
+  const [backupOpen, setBackupOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
@@ -266,10 +318,10 @@ export default function Home() {
   const renderView = () => {
     if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} openReview={() => setActive("审核工作台")} />;
     if (active === "审核工作台") return <ReviewWorkbench documents={reviewDocuments} notify={notify} refreshDocuments={refreshReviewDocuments} />;
-    if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已保存；可在错题证据和报告中继续复盘")} />;
+    if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已提交；后续可在错题证据和报告中继续复盘")} notify={notify} />;
     if (active === "错题证据") return <EvidenceView openTutor={() => setTutorOpen(true)} openTraining={openTraining} />;
     if (active === "报告与轨迹") return <ReportsView />;
     return <Dashboard openImport={setImportKind} openTraining={openTraining} importedCount={importJobs.length} />;
   };
-  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => notify(window.myEuclid ? "桌面版本地导出将在下一迭代接入" : "当前浏览器预览不访问本地资料")}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
+  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => setBackupOpen(true)}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{backupOpen && <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
 }

@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ArchiveHealth, ImportJobSummary, ImportKind, ImportResult, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary } from "./types.js";
+import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 
@@ -17,6 +17,15 @@ contextBridge.exposeInMainWorld("myEuclid", {
     getDocument: (sourceDocumentId: string): Promise<ReviewDocumentDetail | null> => ipcRenderer.invoke("review:get-document", sourceDocumentId),
     updatePageOcr: (pageId: string, ocrText: string): Promise<void> => ipcRenderer.invoke("review:update-page-ocr", pageId, ocrText),
     saveQuestionDrafts: (sourceDocumentId: string, questions: QuestionDraft[]): Promise<void> => ipcRenderer.invoke("review:save-question-drafts", sourceDocumentId, questions),
+  },
+  practice: {
+    saveResponse: (input: SavePracticeResponseInput): Promise<PracticeSessionDetail> => ipcRenderer.invoke("practice:save-response", input),
+    selectPaperAttachments: (input: { sessionId?: string; referenceKey: string; title: string }): Promise<{ session?: PracticeSessionDetail; cancelled?: boolean }> => ipcRenderer.invoke("practice:select-paper-attachments", input),
+  },
+  backup: {
+    export: (): Promise<BackupExportResult> => ipcRenderer.invoke("backup:export"),
+    selectForRestore: (): Promise<{ selection?: BackupSelection; cancelled?: boolean }> => ipcRenderer.invoke("backup:select-for-restore"),
+    restore: (token: string): Promise<BackupSelection> => ipcRenderer.invoke("backup:restore", token),
   },
   app: { openExternal: (url: string): Promise<void> => ipcRenderer.invoke("app:open-external", url) },
 });

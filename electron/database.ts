@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import type { App } from "electron";
-import type { ArchiveHealth, ImportJobSummary, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage } from "./types.js";
+import type { ArchiveHealth, ImportJobSummary, PracticeResponse, PracticeSessionDetail, QuestionDraft, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SavePracticeResponseInput } from "./types.js";
 
 let database: Database.Database | null = null;
 
@@ -13,6 +13,12 @@ export function getDatabase(app: App) {
   migrate(database);
   return database;
 }
+
+export function getDatabasePath(app: App) { return path.join(app.getPath("userData"), "my-euclid.sqlite"); }
+
+export function closeDatabase() { database?.close(); database = null; }
+
+export function checkpointDatabase(app: App) { getDatabase(app).pragma("wal_checkpoint(TRUNCATE)"); }
 
 function migrate(db: Database.Database) {
   const currentVersion = Number(db.pragma("user_version", { simple: true }));
@@ -80,6 +86,51 @@ function migrate(db: Database.Database) {
       CREATE INDEX IF NOT EXISTS idx_subquestion_drafts_question ON subquestion_drafts(question_draft_id);
     `);
     db.pragma("user_version = 2");
+  }
+  if (currentVersion < 3) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS practice_sessions (
+        id TEXT PRIMARY KEY,
+        reference_key TEXT NOT NULL,
+        title TEXT NOT NULL,
+        status TEXT NOT NULL CHECK (status IN ('active', 'submitted', 'archived')),
+        started_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL,
+        submitted_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS practice_responses (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
+        answer_format TEXT NOT NULL CHECK (answer_format IN ('keyboard', 'handwritten', 'paper_attachment')),
+        content TEXT NOT NULL DEFAULT '',
+        status TEXT NOT NULL CHECK (status IN ('draft', 'submitted')),
+        version INTEGER NOT NULL,
+        created_at TEXT NOT NULL,
+        updated_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS response_attachments (
+        id TEXT PRIMARY KEY,
+        response_id TEXT NOT NULL REFERENCES practice_responses(id) ON DELETE CASCADE,
+        original_name TEXT NOT NULL,
+        stored_name TEXT NOT NULL,
+        sha256 TEXT NOT NULL,
+        mime_type TEXT NOT NULL,
+        size_bytes INTEGER NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS backup_audits (
+        id TEXT PRIMARY KEY,
+        action TEXT NOT NULL CHECK (action IN ('export', 'preflight', 'restore')),
+        backup_id TEXT,
+        status TEXT NOT NULL CHECK (status IN ('success', 'failed')),
+        summary_json TEXT NOT NULL,
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_practice_sessions_updated ON practice_sessions(updated_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_practice_responses_session ON practice_responses(session_id, version);
+      CREATE INDEX IF NOT EXISTS idx_response_attachments_response ON response_attachments(response_id);
+    `);
+    db.pragma("user_version = 3");
   }
 }
 
@@ -166,4 +217,60 @@ export function saveQuestionDrafts(app: App, sourceDocumentId: string, questions
     db.prepare(`UPDATE import_jobs SET status = 'archived', updated_at = ? WHERE source_document_id = ?`).run(now, sourceDocumentId);
   });
   save();
+}
+
+export function savePracticeResponse(app: App, input: SavePracticeResponseInput): PracticeSessionDetail {
+  const db = getDatabase(app);
+  const now = new Date().toISOString();
+  const sessionId = input.sessionId ?? crypto.randomUUID();
+  const transaction = db.transaction(() => {
+    const existing = db.prepare("SELECT id FROM practice_sessions WHERE id = ?").get(sessionId);
+    if (!existing) db.prepare(`INSERT INTO practice_sessions (id, reference_key, title, status, started_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?)`).run(sessionId, input.referenceKey, input.title, now, now);
+    const version = (db.prepare("SELECT COALESCE(MAX(version), 0) AS value FROM practice_responses WHERE session_id = ?").get(sessionId) as { value: number }).value + 1;
+    db.prepare(`INSERT INTO practice_responses (id, session_id, answer_format, content, status, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+      .run(crypto.randomUUID(), sessionId, input.answerFormat, input.content, input.status, version, now, now);
+    db.prepare(`UPDATE practice_sessions SET status = ?, updated_at = ?, submitted_at = CASE WHEN ? = 'submitted' THEN ? ELSE submitted_at END WHERE id = ?`)
+      .run(input.status === "submitted" ? "submitted" : "active", now, input.status, now, sessionId);
+  });
+  transaction();
+  return getPracticeSession(app, sessionId)!;
+}
+
+export function createPaperResponse(app: App, sessionId: string, referenceKey: string, title: string) {
+  const db = getDatabase(app);
+  const now = new Date().toISOString();
+  const resolvedSessionId = sessionId || crypto.randomUUID();
+  const existing = db.prepare("SELECT id FROM practice_sessions WHERE id = ?").get(resolvedSessionId);
+  if (!existing) db.prepare(`INSERT INTO practice_sessions (id, reference_key, title, status, started_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?)`).run(resolvedSessionId, referenceKey, title, now, now);
+  const version = (db.prepare("SELECT COALESCE(MAX(version), 0) AS value FROM practice_responses WHERE session_id = ?").get(resolvedSessionId) as { value: number }).value + 1;
+  const responseId = crypto.randomUUID();
+  db.prepare(`INSERT INTO practice_responses (id, session_id, answer_format, content, status, version, created_at, updated_at) VALUES (?, ?, 'paper_attachment', '', 'draft', ?, ?, ?)`).run(responseId, resolvedSessionId, version, now, now);
+  db.prepare("UPDATE practice_sessions SET updated_at = ? WHERE id = ?").run(now, resolvedSessionId);
+  return { sessionId: resolvedSessionId, responseId };
+}
+
+export function addResponseAttachment(app: App, input: Omit<ResponseAttachmentSummary, "createdAt"> & { storedName: string; sha256: string }) {
+  const db = getDatabase(app);
+  db.prepare(`INSERT INTO response_attachments (id, response_id, original_name, stored_name, sha256, mime_type, size_bytes, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(input.id, input.responseId, input.originalName, input.storedName, input.sha256, input.mimeType, input.sizeBytes, new Date().toISOString());
+}
+
+export function getPracticeSession(app: App, sessionId: string): PracticeSessionDetail | null {
+  const db = getDatabase(app);
+  const session = db.prepare(`SELECT id, reference_key AS referenceKey, title, status, started_at AS startedAt, updated_at AS updatedAt FROM practice_sessions WHERE id = ?`).get(sessionId) as Omit<PracticeSessionDetail, "responses"> | undefined;
+  if (!session) return null;
+  const responses = db.prepare(`SELECT id, session_id AS sessionId, answer_format AS answerFormat, content, status, version, created_at AS createdAt FROM practice_responses WHERE session_id = ? ORDER BY version DESC`).all(sessionId) as Omit<PracticeResponse, "attachments">[];
+  const attachments = db.prepare(`SELECT id, response_id AS responseId, original_name AS originalName, mime_type AS mimeType, size_bytes AS sizeBytes, created_at AS createdAt FROM response_attachments WHERE response_id IN (SELECT id FROM practice_responses WHERE session_id = ?) ORDER BY created_at DESC`).all(sessionId) as ResponseAttachmentSummary[];
+  return { ...session, responses: responses.map(response => ({ ...response, attachments: attachments.filter(attachment => attachment.responseId === response.id) })) };
+}
+
+export function getDataCounts(app: App) {
+  const db = getDatabase(app);
+  const count = (sql: string) => (db.prepare(sql).get() as { count: number }).count;
+  return { documentCount: count("SELECT COUNT(*) AS count FROM source_documents"), responseCount: count("SELECT COUNT(*) AS count FROM practice_responses"), attachmentCount: count("SELECT COUNT(*) AS count FROM response_attachments") };
+}
+
+export function writeBackupAudit(app: App, action: "export" | "preflight" | "restore", backupId: string | null, status: "success" | "failed", summary: unknown) {
+  getDatabase(app).prepare(`INSERT INTO backup_audits (id, action, backup_id, status, summary_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`)
+    .run(crypto.randomUUID(), action, backupId, status, JSON.stringify(summary), new Date().toISOString());
 }

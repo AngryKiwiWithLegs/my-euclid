@@ -12,6 +12,13 @@ declare global {
   interface MyEuclidQuestionDraft { id?: string; pageId: string; label: string; title: string; promptText: string; ordinal: number; subquestions: MyEuclidSubquestionDraft[]; }
   interface MyEuclidReviewDocumentSummary { sourceDocumentId: string; originalName: string; kind: MyEuclidImportKind; importedAt: string; pageCount: number; reviewStatus: MyEuclidReviewStatus; }
   interface MyEuclidReviewDocumentDetail extends MyEuclidReviewDocumentSummary { pages: MyEuclidReviewPage[]; questions: MyEuclidQuestionDraft[]; }
+  type MyEuclidAnswerFormat = "keyboard" | "handwritten" | "paper_attachment";
+  interface MyEuclidResponseAttachment { id: string; responseId: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: string; }
+  interface MyEuclidPracticeResponse { id: string; sessionId: string; answerFormat: MyEuclidAnswerFormat; content: string; status: "draft" | "submitted"; version: number; createdAt: string; attachments: MyEuclidResponseAttachment[]; }
+  interface MyEuclidPracticeSession { id: string; referenceKey: string; title: string; status: "active" | "submitted" | "archived"; startedAt: string; updatedAt: string; responses: MyEuclidPracticeResponse[]; }
+  interface MyEuclidBackupSummary { backupId: string; createdAt: string; documentCount: number; responseCount: number; attachmentCount: number; fileCount: number; }
+  interface MyEuclidBackupSelection extends MyEuclidBackupSummary { token: string; fileName: string; }
+  interface MyEuclidBackupExport extends MyEuclidBackupSummary { outputName: string; cancelled?: boolean; }
   interface Window {
     myEuclid?: {
       archive: {
@@ -24,6 +31,15 @@ declare global {
         getDocument: (sourceDocumentId: string) => Promise<MyEuclidReviewDocumentDetail | null>;
         updatePageOcr: (pageId: string, ocrText: string) => Promise<void>;
         saveQuestionDrafts: (sourceDocumentId: string, questions: MyEuclidQuestionDraft[]) => Promise<void>;
+      };
+      practice: {
+        saveResponse: (input: { sessionId?: string; referenceKey: string; title: string; answerFormat: "keyboard" | "handwritten"; content: string; status: "draft" | "submitted" }) => Promise<MyEuclidPracticeSession>;
+        selectPaperAttachments: (input: { sessionId?: string; referenceKey: string; title: string }) => Promise<{ session?: MyEuclidPracticeSession; cancelled?: boolean }>;
+      };
+      backup: {
+        export: () => Promise<MyEuclidBackupExport | { cancelled: true }>;
+        selectForRestore: () => Promise<{ selection?: MyEuclidBackupSelection; cancelled?: boolean }>;
+        restore: (token: string) => Promise<MyEuclidBackupSummary>;
       };
       app: { openExternal: (url: string) => Promise<void> };
     };
