@@ -64,4 +64,5 @@
 - [x] 实现审核页的页面预览、区域拖拽框选、局部重识别与文本确认交互。
 - [x] 编写扫描 PDF 和图片区域 OCR 的集成测试，验证原件与页码回链不被破坏。
 - [x] 更新 OCR 审核与开发文档，并完成 Linux 构建与回归验证。
-- [ ] 推送 GitHub 私有仓库，并在目标 Apple Silicon Mac 验证 PDF/图片预览与区域 OCR 体验。
+- [x] 推送 GitHub 私有仓库，并完成 Linux 构建与回归验证。
+- [ ] 在目标 Apple Silicon Mac 验证 PDF/图片预览、区域 OCR 与 DMG 打包体验。
