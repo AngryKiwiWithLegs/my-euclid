@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import type { App } from "electron";
-import type { ArchiveHealth, ImportJobSummary, InkLayer, InkResponseDetail, InkSaveResult, InkStroke, NormalizedRect, OcrRegion, PracticeResponse, PracticeSessionDetail, QuestionDraft, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, ImportJobSummary, InkLayer, InkResponseDetail, InkSaveResult, InkStroke, NormalizedRect, OcrRegion, PracticeResponse, PracticeSessionDetail, QuestionDraft, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 let database: Database.Database | null = null;
 
@@ -187,6 +187,58 @@ function migrate(db: Database.Database) {
     `);
     db.pragma("user_version = 5");
   }
+  if (currentVersion < 6) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS assessment_records (
+        id TEXT PRIMARY KEY,
+        session_id TEXT NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
+        response_id TEXT NOT NULL REFERENCES practice_responses(id) ON DELETE CASCADE,
+        origin TEXT NOT NULL CHECK (origin IN ('manual', 'ai')),
+        status TEXT NOT NULL CHECK (status IN ('draft', 'confirmed')),
+        version INTEGER NOT NULL,
+        score_awarded REAL NOT NULL CHECK (score_awarded >= 0),
+        score_maximum REAL NOT NULL CHECK (score_maximum > 0),
+        overall_feedback TEXT NOT NULL DEFAULT '',
+        summary TEXT NOT NULL DEFAULT '',
+        created_at TEXT NOT NULL,
+        confirmed_at TEXT
+      );
+      CREATE TABLE IF NOT EXISTS assessment_evidence (
+        id TEXT PRIMARY KEY,
+        assessment_id TEXT NOT NULL REFERENCES assessment_records(id) ON DELETE CASCADE,
+        criterion TEXT NOT NULL,
+        maximum_points REAL NOT NULL CHECK (maximum_points >= 0),
+        awarded_points REAL NOT NULL CHECK (awarded_points >= 0),
+        rationale TEXT NOT NULL DEFAULT '',
+        response_quote TEXT NOT NULL DEFAULT '',
+        ordinal INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS assessment_mistakes (
+        id TEXT PRIMARY KEY,
+        assessment_id TEXT NOT NULL REFERENCES assessment_records(id) ON DELETE CASCADE,
+        category TEXT NOT NULL CHECK (category IN ('conceptual', 'method', 'reasoning', 'completeness', 'calculation', 'communication', 'time', 'other')),
+        module TEXT NOT NULL DEFAULT '',
+        severity TEXT NOT NULL CHECK (severity IN ('minor', 'moderate', 'major')),
+        note TEXT NOT NULL DEFAULT '',
+        ordinal INTEGER NOT NULL
+      );
+      CREATE TABLE IF NOT EXISTS assessment_modules (
+        id TEXT PRIMARY KEY,
+        assessment_id TEXT NOT NULL REFERENCES assessment_records(id) ON DELETE CASCADE,
+        module TEXT NOT NULL,
+        awarded_points REAL NOT NULL CHECK (awarded_points >= 0),
+        maximum_points REAL NOT NULL CHECK (maximum_points > 0),
+        note TEXT NOT NULL DEFAULT '',
+        ordinal INTEGER NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_assessment_records_session ON assessment_records(session_id, version DESC);
+      CREATE INDEX IF NOT EXISTS idx_assessment_records_created ON assessment_records(created_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_assessment_evidence_assessment ON assessment_evidence(assessment_id, ordinal);
+      CREATE INDEX IF NOT EXISTS idx_assessment_mistakes_assessment ON assessment_mistakes(assessment_id, ordinal);
+      CREATE INDEX IF NOT EXISTS idx_assessment_modules_assessment ON assessment_modules(assessment_id, ordinal);
+    `);
+    db.pragma("user_version = 6");
+  }
 }
 
 export function listImportJobs(app: App): ImportJobSummary[] {
@@ -340,6 +392,65 @@ export function getDataCounts(app: App) {
   const db = getDatabase(app);
   const count = (sql: string) => (db.prepare(sql).get() as { count: number }).count;
   return { documentCount: count("SELECT COUNT(*) AS count FROM source_documents"), responseCount: count("SELECT COUNT(*) AS count FROM practice_responses"), attachmentCount: count("SELECT COUNT(*) AS count FROM response_attachments") };
+}
+
+export function listAssessmentSessions(app: App): PracticeSessionDetail[] {
+  const db = getDatabase(app);
+  const rows = db.prepare("SELECT id FROM practice_sessions ORDER BY updated_at DESC LIMIT 30").all() as Array<{ id: string }>;
+  return rows.map(row => getPracticeSession(app, row.id)).filter((session): session is PracticeSessionDetail => Boolean(session));
+}
+
+const assessmentSummarySql = `SELECT a.id, a.session_id AS sessionId, a.response_id AS responseId, s.reference_key AS referenceKey, s.title,
+  r.version AS responseVersion, r.answer_format AS answerFormat, a.origin, a.status, a.version, a.score_awarded AS scoreAwarded,
+  a.score_maximum AS scoreMaximum, a.overall_feedback AS overallFeedback, a.summary, a.created_at AS createdAt, a.confirmed_at AS confirmedAt
+  FROM assessment_records a JOIN practice_sessions s ON s.id = a.session_id JOIN practice_responses r ON r.id = a.response_id`;
+
+export function listAssessmentRecords(app: App): AssessmentRecordSummary[] {
+  return getDatabase(app).prepare(`${assessmentSummarySql} ORDER BY a.created_at DESC LIMIT 40`).all() as AssessmentRecordSummary[];
+}
+
+export function getAssessmentRecord(app: App, assessmentId: string): AssessmentRecordDetail | null {
+  const db = getDatabase(app);
+  const summary = db.prepare(`${assessmentSummarySql} WHERE a.id = ?`).get(assessmentId) as AssessmentRecordSummary | undefined;
+  if (!summary) return null;
+  const evidence = db.prepare(`SELECT id, criterion, maximum_points AS maximumPoints, awarded_points AS awardedPoints, rationale, response_quote AS responseQuote, ordinal FROM assessment_evidence WHERE assessment_id = ? ORDER BY ordinal`).all(assessmentId) as AssessmentRecordDetail["evidence"];
+  const mistakes = db.prepare(`SELECT id, category, module, severity, note, ordinal FROM assessment_mistakes WHERE assessment_id = ? ORDER BY ordinal`).all(assessmentId) as AssessmentRecordDetail["mistakes"];
+  const modules = db.prepare(`SELECT id, module, awarded_points AS awardedPoints, maximum_points AS maximumPoints, note, ordinal FROM assessment_modules WHERE assessment_id = ? ORDER BY ordinal`).all(assessmentId) as AssessmentRecordDetail["modules"];
+  return { ...summary, confirmedAt: summary.confirmedAt ?? undefined, evidence, mistakes, modules };
+}
+
+export function saveAssessmentRecord(app: App, input: SaveAssessmentInput): AssessmentRecordDetail {
+  const db = getDatabase(app);
+  const now = new Date().toISOString();
+  const response = db.prepare("SELECT id FROM practice_responses WHERE id = ? AND session_id = ?").get(input.responseId, input.sessionId);
+  if (!response) throw new Error("所选答卷版本不属于当前训练会话。");
+  const assessmentId = crypto.randomUUID();
+  const transaction = db.transaction(() => {
+    const version = (db.prepare("SELECT COALESCE(MAX(version), 0) AS value FROM assessment_records WHERE session_id = ?").get(input.sessionId) as { value: number }).value + 1;
+    db.prepare(`INSERT INTO assessment_records (id, session_id, response_id, origin, status, version, score_awarded, score_maximum, overall_feedback, summary, created_at, confirmed_at)
+      VALUES (?, ?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?, ?)`).run(assessmentId, input.sessionId, input.responseId, input.status, version, input.scoreAwarded, input.scoreMaximum, input.overallFeedback.slice(0, 12_000), input.summary.slice(0, 4_000), now, input.status === "confirmed" ? now : null);
+    const evidence = db.prepare(`INSERT INTO assessment_evidence (id, assessment_id, criterion, maximum_points, awarded_points, rationale, response_quote, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
+    const mistakes = db.prepare(`INSERT INTO assessment_mistakes (id, assessment_id, category, module, severity, note, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    const modules = db.prepare(`INSERT INTO assessment_modules (id, assessment_id, module, awarded_points, maximum_points, note, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?)`);
+    for (const item of input.evidence) evidence.run(crypto.randomUUID(), assessmentId, item.criterion.slice(0, 500), item.maximumPoints, item.awardedPoints, item.rationale.slice(0, 4_000), item.responseQuote.slice(0, 4_000), item.ordinal);
+    for (const item of input.mistakes) mistakes.run(crypto.randomUUID(), assessmentId, item.category, item.module.slice(0, 180), item.severity, item.note.slice(0, 4_000), item.ordinal);
+    for (const item of input.modules) modules.run(crypto.randomUUID(), assessmentId, item.module.slice(0, 180), item.awardedPoints, item.maximumPoints, item.note.slice(0, 2_000), item.ordinal);
+  });
+  transaction();
+  return getAssessmentRecord(app, assessmentId)!;
+}
+
+export function getAssessmentDashboard(app: App): AssessmentDashboard {
+  const db = getDatabase(app);
+  const totals = db.prepare(`SELECT COUNT(*) AS assessmentCount, SUM(CASE WHEN status = 'confirmed' THEN 1 ELSE 0 END) AS confirmedCount,
+    SUM(CASE WHEN status = 'confirmed' THEN score_awarded ELSE 0 END) AS awarded, SUM(CASE WHEN status = 'confirmed' THEN score_maximum ELSE 0 END) AS maximum
+    FROM assessment_records`).get() as { assessmentCount: number; confirmedCount: number; awarded: number | null; maximum: number | null };
+  const latest = db.prepare("SELECT score_awarded / score_maximum AS scoreRate FROM assessment_records WHERE status = 'confirmed' ORDER BY created_at DESC LIMIT 1").get() as { scoreRate: number } | undefined;
+  const history = db.prepare(`SELECT id AS assessmentId, created_at AS createdAt, score_awarded / score_maximum AS scoreRate FROM assessment_records WHERE status = 'confirmed' ORDER BY created_at ASC LIMIT 30`).all() as AssessmentDashboard["history"];
+  const modules = db.prepare(`SELECT m.module, SUM(m.awarded_points) AS awardedPoints, SUM(m.maximum_points) AS maximumPoints, SUM(m.awarded_points) / SUM(m.maximum_points) AS scoreRate
+    FROM assessment_modules m JOIN assessment_records a ON a.id = m.assessment_id WHERE a.status = 'confirmed' GROUP BY m.module ORDER BY maximumPoints DESC`).all() as AssessmentDashboard["modules"];
+  const mistakes = db.prepare(`SELECT m.category, COUNT(*) AS count FROM assessment_mistakes m JOIN assessment_records a ON a.id = m.assessment_id WHERE a.status = 'confirmed' GROUP BY m.category ORDER BY count DESC`).all() as AssessmentDashboard["mistakes"];
+  return { assessmentCount: totals.assessmentCount, confirmedCount: totals.confirmedCount ?? 0, weightedScoreRate: totals.maximum ? totals.awarded! / totals.maximum : null, latestScoreRate: latest?.scoreRate ?? null, recentAssessments: listAssessmentRecords(app), history, modules, mistakes, aiStatus: "not_configured" };
 }
 
 export function writeBackupAudit(app: App, action: "export" | "preflight" | "restore", backupId: string | null, status: "success" | "failed", summary: unknown) {

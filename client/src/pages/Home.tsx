@@ -5,6 +5,7 @@
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { InkCanvas } from "@/components/InkCanvas";
 import { OcrRegionSelector } from "@/components/OcrRegionSelector";
+import { EvidenceWorkspace, ReportsWorkspace } from "@/components/AssessmentWorkspace";
 import {
   Archive,
   ArrowLeft,
@@ -248,7 +249,7 @@ function TrainingView({ initialId, backToLibrary, onSubmit, notify }: { initialI
       <aside className="answer-panel"><div className="answer-head"><div><p className="eyebrow">YOUR WORK</p><h3>作答记录</h3></div><span className="autosave">{session ? <><CheckCircle2 size={14} /> 已保存 {session.responses.length} 个版本</> : "尚未保存"}</span></div><div className="answer-modes">{["键盘作答", "手写板书", "上传纸质答案"].map(item => <button key={item} className={mode === item ? "is-selected" : ""} onClick={() => setMode(item)}>{item === "键盘作答" ? <Keyboard size={15} /> : item === "手写板书" ? <MousePointer2 size={15} /> : <ImageUp size={15} />}{item}</button>)}</div>
         {mode === "上传纸质答案" ? <div className="input-placeholder"><ImageUp size={26} /><strong>纸质答案附件</strong><p>选择 PDF、扫描件或照片后，文件会复制到本地档案，并绑定到本次作答。</p><button onClick={attachPaper} disabled={isSaving}>{isSaving ? "正在归档…" : "选择纸质答案"}</button>{attachmentCount ? <small>已关联 {attachmentCount} 个附件</small> : null}</div> : mode === "手写板书" ? <InkCanvas onSave={saveInk} isSaving={isSaving} /> : <><textarea value={answer} onChange={e => setAnswer(e.target.value)} onBlur={() => void save("draft")} placeholder="在这里写下证明。公式可以使用 LaTeX 语法，例如 \frac{a}{b}。" /><p className="session-hint">离开输入框会自动存草稿；每次保存均保留为独立版本。</p></>}
         {mode !== "手写板书" && <div className="answer-actions"><button className="secondary-button" onClick={() => setAnswer("")}><Undo2 size={15} /> 清空草稿</button><button className="secondary-button" onClick={() => void save("draft")} disabled={isSaving || mode === "上传纸质答案"}><Save size={15} /> 保存草稿</button><button className="primary-button" onClick={() => void save("submitted")} disabled={isSaving || mode === "上传纸质答案"}><Send size={15} /> 提交并分析</button></div>}
-        {submitted && <div className="assessment-card"><div><p className="eyebrow">ASSESSMENT PREVIEW</p><h4>已进入评分队列</h4></div><span>需 AI 评阅</span><p>桌面版会将本题、作答、评分依据与参考解法组合为一次可审阅的分析任务，并写入答卷报告。</p></div>}
+        {submitted && <div className="assessment-card"><div><p className="eyebrow">ASSESSMENT ARCHIVE</p><h4>作答已进入本地评分档案</h4></div><span>等待评分确认</span><p>可在“错题证据”中为本次作答建立可回看的评分依据、错因和模块拆分。AI 判卷须待服务与密钥由你主动配置后才会启用。</p></div>}
       </aside>
     </div>
   </div>;
@@ -339,7 +340,15 @@ function TutorModal({ onClose }: { onClose: () => void }) {
 }
 
 export default function Home() {
-  const [active, setActive] = useState<View>(() => new URLSearchParams(window.location.search).get("view") === "training" ? "训练会话" : "工作台");
+  const [active, setActive] = useState<View>(() => {
+    const view = new URLSearchParams(window.location.search).get("view");
+    if (view === "training") return "训练会话";
+    if (view === "evidence") return "错题证据";
+    if (view === "reports") return "报告与轨迹";
+    if (view === "review") return "审核工作台";
+    if (view === "library") return "题库档案";
+    return "工作台";
+  });
   const [importKind, setImportKind] = useState<ImportKind>(null);
   const [trainingId, setTrainingId] = useState("E-2025-07b");
   const [tutorOpen, setTutorOpen] = useState(false);
@@ -347,10 +356,14 @@ export default function Home() {
   const [toast, setToast] = useState<string | null>(null);
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
+  const [assessmentSessions, setAssessmentSessions] = useState<MyEuclidPracticeSession[]>([]);
+  const [assessmentRecords, setAssessmentRecords] = useState<MyEuclidAssessmentRecord[]>([]);
+  const [assessmentDashboard, setAssessmentDashboard] = useState<MyEuclidAssessmentDashboard | null>(null);
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
   const refreshImportJobs = async () => { if (window.myEuclid) setImportJobs(await window.myEuclid.archive.listImportJobs()); };
   const refreshReviewDocuments = async () => { if (window.myEuclid) setReviewDocuments(await window.myEuclid.review.listDocuments()); };
-  useEffect(() => { void refreshImportJobs(); void refreshReviewDocuments(); }, []);
+  const refreshAssessments = async () => { if (window.myEuclid) { const [sessions, records, dashboard] = await Promise.all([window.myEuclid.assessment.listSessions(), window.myEuclid.assessment.listRecords(), window.myEuclid.assessment.getDashboard()]); setAssessmentSessions(sessions); setAssessmentRecords(records); setAssessmentDashboard(dashboard); } };
+  useEffect(() => { void refreshImportJobs(); void refreshReviewDocuments(); void refreshAssessments(); }, []);
   const desktopImport = async (kind: MyEuclidImportKind) => {
     if (!window.myEuclid) return 0;
     const result = await window.myEuclid.archive.selectAndImport(kind);
@@ -362,8 +375,8 @@ export default function Home() {
     if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} openReview={() => setActive("审核工作台")} />;
     if (active === "审核工作台") return <ReviewWorkbench documents={reviewDocuments} notify={notify} refreshDocuments={refreshReviewDocuments} />;
     if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已提交；后续可在错题证据和报告中继续复盘")} notify={notify} />;
-    if (active === "错题证据") return <EvidenceView openTutor={() => setTutorOpen(true)} openTraining={openTraining} />;
-    if (active === "报告与轨迹") return <ReportsView />;
+    if (active === "错题证据") return <EvidenceWorkspace sessions={assessmentSessions} records={assessmentRecords} refresh={refreshAssessments} notify={notify} />;
+    if (active === "报告与轨迹") return <ReportsWorkspace dashboard={assessmentDashboard} />;
     return <Dashboard openImport={setImportKind} openTraining={openTraining} importedCount={importJobs.length} />;
   };
   return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => setBackupOpen(true)}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{backupOpen && <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;

@@ -12,6 +12,8 @@
 
 训练页的“手写板书”现已提供 Pointer Events 画布。它保留图层、归一化笔画坐标、压力、相对时间和 SVG 快照，支持画笔、橡皮擦、撤销、重做、清空与按笔画顺序回放。保存时会创建独立的 `handwritten` 答卷版本；由于全部笔迹数据位于 SQLite 中，既有备份与恢复不需要额外配置。端到端验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ink-flow.mjs`。
 
+错题证据与报告页现由本地评分档案驱动。评分档案包含答卷版本回链、总分、逐条评分依据、错因和模块拆分；只有确认评分才会进入累计得分率、最近得分率、模块表现、错因分布和评分轨迹。AI 判卷尚未接入：当前没有用户配置的服务或密钥，故不会生成任何伪造 AI 结论。评分与备份恢复验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-assessment-report.mjs`。
+
 ## 本地运行
 
 ```bash

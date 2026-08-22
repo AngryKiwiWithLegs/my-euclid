@@ -26,6 +26,15 @@ declare global {
   interface MyEuclidInkStroke { id?: string; ordinal: number; tool: "pen" | "eraser"; color: string; width: number; points: MyEuclidInkPoint[]; }
   interface MyEuclidInkLayer { id?: string; title: string; ordinal: number; visible: boolean; strokes: MyEuclidInkStroke[]; }
   interface MyEuclidInkResponse { responseId: string; sessionId: string; canvasWidth: number; canvasHeight: number; previewSvg: string; createdAt: string; layers: Array<MyEuclidInkLayer & { id: string; strokes: Array<MyEuclidInkStroke & { id: string }> }>; }
+  type MyEuclidAssessmentStatus = "draft" | "confirmed";
+  type MyEuclidMistakeCategory = "conceptual" | "method" | "reasoning" | "completeness" | "calculation" | "communication" | "time" | "other";
+  type MyEuclidMistakeSeverity = "minor" | "moderate" | "major";
+  interface MyEuclidAssessmentEvidence { id?: string; criterion: string; maximumPoints: number; awardedPoints: number; rationale: string; responseQuote: string; ordinal: number; }
+  interface MyEuclidAssessmentMistake { id?: string; category: MyEuclidMistakeCategory; module: string; severity: MyEuclidMistakeSeverity; note: string; ordinal: number; }
+  interface MyEuclidAssessmentModule { id?: string; module: string; awardedPoints: number; maximumPoints: number; note: string; ordinal: number; }
+  interface MyEuclidAssessmentRecord { id: string; sessionId: string; responseId: string; referenceKey: string; title: string; responseVersion: number; answerFormat: MyEuclidAnswerFormat; origin: "manual" | "ai"; status: MyEuclidAssessmentStatus; version: number; scoreAwarded: number; scoreMaximum: number; overallFeedback: string; summary: string; createdAt: string; confirmedAt?: string; }
+  interface MyEuclidAssessmentDetail extends MyEuclidAssessmentRecord { evidence: Array<MyEuclidAssessmentEvidence & { id: string }>; mistakes: Array<MyEuclidAssessmentMistake & { id: string }>; modules: Array<MyEuclidAssessmentModule & { id: string }>; }
+  interface MyEuclidAssessmentDashboard { assessmentCount: number; confirmedCount: number; weightedScoreRate: number | null; latestScoreRate: number | null; recentAssessments: MyEuclidAssessmentRecord[]; history: Array<{ assessmentId: string; createdAt: string; scoreRate: number }>; modules: Array<{ module: string; awardedPoints: number; maximumPoints: number; scoreRate: number }>; mistakes: Array<{ category: MyEuclidMistakeCategory; count: number }>; aiStatus: "not_configured"; }
   interface Window {
     myEuclid?: {
       archive: {
@@ -40,6 +49,13 @@ declare global {
         recognizeRegion: (input: { pageId: string; rect: MyEuclidNormalizedRect }) => Promise<MyEuclidOcrRegion>;
         updatePageOcr: (pageId: string, ocrText: string) => Promise<void>;
         saveQuestionDrafts: (sourceDocumentId: string, questions: MyEuclidQuestionDraft[]) => Promise<void>;
+      };
+      assessment: {
+        listSessions: () => Promise<MyEuclidPracticeSession[]>;
+        listRecords: () => Promise<MyEuclidAssessmentRecord[]>;
+        getRecord: (assessmentId: string) => Promise<MyEuclidAssessmentDetail | null>;
+        getDashboard: () => Promise<MyEuclidAssessmentDashboard>;
+        saveManual: (input: { sessionId: string; responseId: string; status: MyEuclidAssessmentStatus; scoreAwarded: number; scoreMaximum: number; overallFeedback: string; summary: string; evidence: MyEuclidAssessmentEvidence[]; mistakes: MyEuclidAssessmentMistake[]; modules: MyEuclidAssessmentModule[] }) => Promise<MyEuclidAssessmentDetail>;
       };
       practice: {
         saveResponse: (input: { sessionId?: string; referenceKey: string; title: string; answerFormat: "keyboard" | "handwritten"; content: string; status: "draft" | "submitted" }) => Promise<MyEuclidPracticeSession>;

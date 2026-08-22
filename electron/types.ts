@@ -179,3 +179,90 @@ export interface BackupSummary {
 export interface BackupSelection extends BackupSummary { token: string; fileName: string; }
 
 export interface BackupExportResult extends BackupSummary { outputName: string; cancelled?: boolean; }
+
+export type AssessmentOrigin = "manual" | "ai";
+export type AssessmentStatus = "draft" | "confirmed";
+export type MistakeCategory = "conceptual" | "method" | "reasoning" | "completeness" | "calculation" | "communication" | "time" | "other";
+export type MistakeSeverity = "minor" | "moderate" | "major";
+
+export interface AssessmentEvidenceInput {
+  id?: string;
+  criterion: string;
+  maximumPoints: number;
+  awardedPoints: number;
+  rationale: string;
+  responseQuote: string;
+  ordinal: number;
+}
+
+export interface AssessmentMistakeInput {
+  id?: string;
+  category: MistakeCategory;
+  module: string;
+  severity: MistakeSeverity;
+  note: string;
+  ordinal: number;
+}
+
+export interface AssessmentModuleInput {
+  id?: string;
+  module: string;
+  awardedPoints: number;
+  maximumPoints: number;
+  note: string;
+  ordinal: number;
+}
+
+export interface SaveAssessmentInput {
+  sessionId: string;
+  responseId: string;
+  status: AssessmentStatus;
+  scoreAwarded: number;
+  scoreMaximum: number;
+  overallFeedback: string;
+  summary: string;
+  evidence: AssessmentEvidenceInput[];
+  mistakes: AssessmentMistakeInput[];
+  modules: AssessmentModuleInput[];
+}
+
+export interface AssessmentEvidence extends AssessmentEvidenceInput { id: string; }
+export interface AssessmentMistake extends AssessmentMistakeInput { id: string; }
+export interface AssessmentModule extends AssessmentModuleInput { id: string; }
+
+export interface AssessmentRecordSummary {
+  id: string;
+  sessionId: string;
+  responseId: string;
+  referenceKey: string;
+  title: string;
+  responseVersion: number;
+  answerFormat: AnswerFormat;
+  origin: AssessmentOrigin;
+  status: AssessmentStatus;
+  version: number;
+  scoreAwarded: number;
+  scoreMaximum: number;
+  overallFeedback: string;
+  summary: string;
+  createdAt: string;
+  confirmedAt?: string;
+}
+
+export interface AssessmentRecordDetail extends AssessmentRecordSummary {
+  evidence: AssessmentEvidence[];
+  mistakes: AssessmentMistake[];
+  modules: AssessmentModule[];
+}
+
+export interface AssessmentDashboard {
+  assessmentCount: number;
+  confirmedCount: number;
+  weightedScoreRate: number | null;
+  latestScoreRate: number | null;
+  recentAssessments: AssessmentRecordSummary[];
+  history: Array<{ assessmentId: string; createdAt: string; scoreRate: number }>;
+  modules: Array<{ module: string; awardedPoints: number; maximumPoints: number; scoreRate: number }>;
+  mistakes: Array<{ category: MistakeCategory; count: number }>;
+  aiStatus: "not_configured";
+}

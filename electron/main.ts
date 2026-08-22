@@ -3,11 +3,11 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archive.js";
 import { exportBackup, preflightBackup, restoreBackup } from "./backup.js";
-import { databaseHealth, getDatabase, getInkResponse, listImportJobs, saveInkResponse } from "./database.js";
+import { databaseHealth, getAssessmentDashboard, getAssessmentRecord, getDatabase, getInkResponse, listAssessmentRecords, listAssessmentSessions, listImportJobs, saveAssessmentRecord, saveInkResponse } from "./database.js";
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -27,6 +27,20 @@ function requireNormalizedRect(value: unknown): NormalizedRect {
   const [x, y, width, height] = numbers as number[];
   if (x < 0 || y < 0 || width < 0.01 || height < 0.01 || width > 1 || height > 1 || x + width > 1 || y + height > 1) throw new Error("框选区域超出原始页面边界。");
   return { x, y, width, height };
+}
+
+function requireAssessment(input: unknown): SaveAssessmentInput {
+  if (!input || typeof input !== "object") throw new Error("评分档案参数无效。");
+  const data = input as SaveAssessmentInput;
+  if (!uuidPattern.test(data.sessionId) || !uuidPattern.test(data.responseId) || !["draft", "confirmed"].includes(data.status)) throw new Error("评分档案的会话、答卷或状态无效。");
+  if (!Number.isFinite(data.scoreAwarded) || !Number.isFinite(data.scoreMaximum) || data.scoreAwarded < 0 || data.scoreMaximum <= 0 || data.scoreAwarded > data.scoreMaximum) throw new Error("总分必须介于 0 与满分之间。");
+  if (typeof data.overallFeedback !== "string" || typeof data.summary !== "string" || data.overallFeedback.length > 12_000 || data.summary.length > 4_000) throw new Error("评分说明超过保存限制。");
+  if (!Array.isArray(data.evidence) || !Array.isArray(data.mistakes) || !Array.isArray(data.modules) || data.evidence.length > 30 || data.mistakes.length > 20 || data.modules.length > 12) throw new Error("评分依据、错因或模块数量超过保存限制。");
+  const validEvidence = data.evidence.every(item => typeof item?.criterion === "string" && typeof item.rationale === "string" && typeof item.responseQuote === "string" && Number.isFinite(item.maximumPoints) && Number.isFinite(item.awardedPoints) && item.maximumPoints >= 0 && item.awardedPoints >= 0 && item.awardedPoints <= item.maximumPoints);
+  const validMistakes = data.mistakes.every(item => ["conceptual", "method", "reasoning", "completeness", "calculation", "communication", "time", "other"].includes(item?.category) && ["minor", "moderate", "major"].includes(item?.severity) && typeof item.module === "string" && typeof item.note === "string");
+  const validModules = data.modules.every(item => typeof item?.module === "string" && typeof item.note === "string" && Number.isFinite(item.maximumPoints) && Number.isFinite(item.awardedPoints) && item.maximumPoints > 0 && item.awardedPoints >= 0 && item.awardedPoints <= item.maximumPoints);
+  if (!validEvidence || !validMistakes || !validModules) throw new Error("评分依据、错因或模块字段无效。");
+  return data;
 }
 
 function createWindow() {
@@ -64,6 +78,11 @@ app.whenReady().then(async () => {
     return updatePageOcr(app, requireLocalId(pageId, "页面标识"), ocrText);
   });
   ipcMain.handle("review:save-question-drafts", (_event, sourceDocumentId: string, questions: QuestionDraft[]) => saveQuestionDrafts(app, sourceDocumentId, questions));
+  ipcMain.handle("assessment:list-sessions", () => listAssessmentSessions(app));
+  ipcMain.handle("assessment:list-records", () => listAssessmentRecords(app));
+  ipcMain.handle("assessment:get-record", (_event, assessmentId: string) => getAssessmentRecord(app, requireLocalId(assessmentId, "评分档案标识")));
+  ipcMain.handle("assessment:get-dashboard", () => getAssessmentDashboard(app));
+  ipcMain.handle("assessment:save-manual", (_event, input: SaveAssessmentInput) => saveAssessmentRecord(app, requireAssessment(input)));
   ipcMain.handle("practice:save-response", (_event, input: SavePracticeResponseInput) => {
     if (!input || !["keyboard", "handwritten"].includes(input.answerFormat) || !["draft", "submitted"].includes(input.status)) throw new Error("作答格式或保存状态无效。");
     if (input.content.length > 500_000) throw new Error("单次作答文本超过保存限制。");

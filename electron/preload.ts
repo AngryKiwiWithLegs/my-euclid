@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 
@@ -19,6 +19,13 @@ contextBridge.exposeInMainWorld("myEuclid", {
     recognizeRegion: (input: { pageId: string; rect: NormalizedRect }): Promise<OcrRegion> => ipcRenderer.invoke("review:recognize-region", input),
     updatePageOcr: (pageId: string, ocrText: string): Promise<void> => ipcRenderer.invoke("review:update-page-ocr", pageId, ocrText),
     saveQuestionDrafts: (sourceDocumentId: string, questions: QuestionDraft[]): Promise<void> => ipcRenderer.invoke("review:save-question-drafts", sourceDocumentId, questions),
+  },
+  assessment: {
+    listSessions: (): Promise<PracticeSessionDetail[]> => ipcRenderer.invoke("assessment:list-sessions"),
+    listRecords: (): Promise<AssessmentRecordSummary[]> => ipcRenderer.invoke("assessment:list-records"),
+    getRecord: (assessmentId: string): Promise<AssessmentRecordDetail | null> => ipcRenderer.invoke("assessment:get-record", assessmentId),
+    getDashboard: (): Promise<AssessmentDashboard> => ipcRenderer.invoke("assessment:get-dashboard"),
+    saveManual: (input: SaveAssessmentInput): Promise<AssessmentRecordDetail> => ipcRenderer.invoke("assessment:save-manual", input),
   },
   practice: {
     saveResponse: (input: SavePracticeResponseInput): Promise<PracticeSessionDetail> => ipcRenderer.invoke("practice:save-response", input),
