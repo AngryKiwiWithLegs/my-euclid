@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-仓库目前包含 React 工作台原型，用于固定交互信息架构与视觉语言。它还不是完整的 Electron 应用，不会在此阶段假装实现本地 SQLite、摄像头、OCR 或 AI 判卷。
+仓库现已包含 Electron 桌面壳、受限预加载 API、SQLite 本地数据库与真实资料归档的第一版实现。React 工作台中的“导入资料”和“上传纸质答卷”在 Electron 模式下会调用 macOS 原生文件选择器，将用户选择的文件复制到应用私有档案目录，并创建可持久化的审核任务。OCR、题号识别、摄像头、AI 判卷与 IRT 训练仍是后续功能，不会在本版本中被误表述为已完成。
 
 ## 本地运行
 
@@ -11,11 +11,29 @@ pnpm install
 pnpm dev
 ```
 
+上述命令仅启动浏览器预览，因而不会请求本地文件权限。若要运行桌面开发模式，请使用：
+
+```bash
+pnpm dev:desktop
+```
+
+首次为 Electron 构建 SQLite 原生绑定或更换 Electron 版本后，请运行：
+
+```bash
+pnpm rebuild:native
+```
+
+在 Apple Silicon Mac 上生成 DMG：
+
+```bash
+pnpm package:mac
+```
+
 ## 后续桌面化路线
 
-1. 将当前 React 应用迁入 Electron 主进程与预加载脚本架构。
-2. 在 Electron 主进程实现受限 IPC：文件选择、受控文件读写、摄像头、Keychain 和导入导出。
-3. 引入 SQLite 与迁移文件，实现文档、题目、作答、评分与 IRT 数据结构。
+1. 为已归档的 PDF/图片添加本地 OCR、页码预览、题目和小问审核界面。
+2. 扩展 SQLite 迁移，落地题目、小问、作答、评分、错题和 IRT 实体。
+3. 加入受限 IPC 的摄像头拍照、数据导出与 macOS Keychain 密钥存储。
 4. 通过 `electron-builder --mac dmg --arm64` 生成 Apple Silicon DMG，并在未签名安装、签名和公证三个阶段分别验证。
 
 ## 质量基线

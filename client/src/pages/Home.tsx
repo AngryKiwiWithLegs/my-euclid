@@ -2,7 +2,7 @@
  * 欧几里得档案室：新古典编辑主义工作台。
  * 题面与证据优先，使用温暖档案纸、深海军蓝和朱砂红建立克制层次。
  */
-import { ChangeEvent, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import {
   Archive,
   ArrowLeft,
@@ -83,11 +83,11 @@ function Metric({ number, label, note }: { number: string; label: string; note: 
   return <div className="metric"><strong>{number}</strong><span>{label}</span><small>{note}</small></div>;
 }
 
-function Dashboard({ openImport, openTraining }: { openImport: (kind: ImportKind) => void; openTraining: (id?: string) => void }) {
+function Dashboard({ openImport, openTraining, importedCount }: { openImport: (kind: ImportKind) => void; openTraining: (id?: string) => void; importedCount: number }) {
   const today = useMemo(() => new Intl.DateTimeFormat("zh-CN", { month: "long", day: "numeric", weekday: "long" }).format(new Date()), []);
   return <>
     <section className="intro-row"><div className="intro-copy"><p className="eyebrow">{today} · EVIDENCE-LED PRACTICE</p><h2>从证据出发，<em>定位下一处突破。</em></h2><p>把原始试卷、在线推演与纸质答案放进同一套训练档案。导入第一份资料后，系统会建立可审核的题目索引。</p></div><div className="paper-hero" aria-label="数学档案材料装饰图" /></section>
-    <section className="metric-strip" aria-label="训练概览"><Metric number="0" label="已归档小问" note="导入资料后开始建立索引" /><Metric number="—" label="当前能力估计" note="需要真实作答后计算" /><Metric number="0 h" label="本周专注训练" note="计时会话将显示在这里" /><Metric number="待定" label="首份模考报告" note="完成一次 150 分钟套卷后生成" /></section>
+    <section className="metric-strip" aria-label="训练概览"><Metric number={String(importedCount)} label="已归档资料" note={importedCount ? "已写入本地 SQLite 档案" : "导入资料后开始建立索引"} /><Metric number="—" label="当前能力估计" note="需要真实作答后计算" /><Metric number="0 h" label="本周专注训练" note="计时会话将显示在这里" /><Metric number="待定" label="首份模考报告" note="完成一次 150 分钟套卷后生成" /></section>
     <section className="split-layout"><div className="main-column"><SectionTitle eyebrow="FIRST ACTION" title="建立你的第一份训练档案" action={<span className="subtle-caption">全部入口均可在当前原型中试用</span>} />
       <div className="import-grid">
         <button className="import-card" onClick={() => openImport("source")}><span className="import-icon"><FileUp size={21} /></span><span><strong>导入资料</strong><small>PDF · 图片 · 文本 · 链接</small></span><ArrowUpRight size={16} /></button>
@@ -104,14 +104,15 @@ function EvidenceDrawer() {
   return <aside className="evidence-drawer"><div className="drawer-head"><div><p className="eyebrow">TRACEABILITY</p><h3>档案证据</h3></div></div><div className="evidence-list"><article className="evidence-item"><span className="navy-accent" /><div><p>OCR</p><small>导入后会显示页面、识别文本与小问边界。</small></div></article><article className="evidence-item"><span className="red-accent" /><div><p>标签</p><small>AI 建议与人工审核状态会并存、可回退。</small></div></article><article className="evidence-item"><span className="graphite-accent" /><div><p>归档</p><small>原始资料始终可由题目和报告回链查看。</small></div></article></div><div className="ai-note"><Sparkles size={18} /><div><strong>AI 仅在你发起后工作</strong><p>OCR、切分、评分和讲解均保留审核依据。</p></div></div><button className="outline-button"><Download size={15} /> 查看数据迁移规范</button></aside>;
 }
 
-function LibraryView({ openImport, openTraining }: { openImport: (kind: ImportKind) => void; openTraining: (id: string) => void }) {
+function LibraryView({ openImport, openTraining, importJobs }: { openImport: (kind: ImportKind) => void; openTraining: (id: string) => void; importJobs: MyEuclidImportJob[] }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("全部模块");
   const filtered = questions.filter(q => `${q.source}${q.title}${q.tags.join("")}`.toLowerCase().includes(query.toLowerCase()) && (filter === "全部模块" || q.tags.includes(filter)));
   return <div className="view-shell"><SectionTitle eyebrow="SOURCE INDEX" title="题库档案" action={<div className="inline-actions"><button className="text-action" onClick={() => openImport("source")}><Upload size={15} /> 导入资料</button><button className="text-action" onClick={() => openImport("paper")}><Camera size={15} /> 上传答卷</button></div>} />
     <div className="library-toolbar"><label className="search-box"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索题号、来源、知识点" /></label><label className="filter-select"><Filter size={15} /><select value={filter} onChange={e => setFilter(e.target.value)}><option>全部模块</option><option>数列</option><option>计数</option><option>几何</option></select></label><span className="result-count">{filtered.length} 个示例条目</span></div>
     <div className="library-table"><div className="table-head"><span>来源 / 小问</span><span>标签</span><span>难度</span><span>状态</span><span /></div>{filtered.map(q => <article className="library-row" key={q.id}><div><p className="record-id">{q.id}</p><h4>{q.source} · {q.number}</h4><small>{q.title}</small></div><div>{q.tags.map(tag => <span className="tag" key={tag}>{tag}</span>)}</div><span className="difficulty-dot"><i />{q.difficulty}</span><span className="status-pill">{q.status}</span><button className="row-action" onClick={() => openTraining(q.id)}>打开 <ChevronRight size={15} /></button></article>)}</div>
-    <div className="archive-footnote"><Archive size={17} /><p>当前条目是交互演示数据。导入真实资料后，条目会与原始文件页码、切分区域、OCR 版本和标签审核记录建立回链。</p></div>
+    {importJobs.length > 0 && <section className="import-ledger"><SectionTitle eyebrow="LOCAL IMPORT LEDGER" title="已归档的真实资料" /><div className="import-job-list">{importJobs.map(job => <article key={job.id}><div><FileText size={17} /><span><strong>{job.originalName}</strong><small>{job.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {new Date(job.createdAt).toLocaleString("zh-CN")}</small></span></div><span className="job-status"><CheckCircle2 size={14} /> {job.status === "needs_review" ? "待 OCR / 切分审核" : job.status}</span></article>)}</div></section>}
+    <div className="archive-footnote"><Archive size={17} /><p>示例题目仅用于展示训练界面。真实导入的资料会与原始文件、页码、切分区域、OCR 版本和标签审核记录建立回链。</p></div>
   </div>;
 }
 
@@ -148,16 +149,34 @@ function ReportsView() {
   </div>;
 }
 
-function ImportModal({ kind, onClose, onCompleted, openTraining }: { kind: Exclude<ImportKind, null>; onClose: () => void; onCompleted: (message: string) => void; openTraining: () => void }) {
+function ImportModal({ kind, onClose, onCompleted, openTraining, desktopImport }: { kind: Exclude<ImportKind, null>; onClose: () => void; onCompleted: (message: string) => void; openTraining: () => void; desktopImport: (kind: MyEuclidImportKind) => Promise<number> }) {
   const [fileName, setFileName] = useState("");
   const [url, setUrl] = useState("");
   const [step, setStep] = useState(1);
+  const [isImporting, setIsImporting] = useState(false);
+  const [importError, setImportError] = useState<string | null>(null);
   const isPaper = kind === "paper";
   const title = kind === "source" ? "导入题目资料" : isPaper ? "上传纸质答卷" : "新建在线作答";
   const handleFile = (event: ChangeEvent<HTMLInputElement>) => setFileName(event.target.files?.[0]?.name ?? "");
-  const complete = () => { setStep(2); window.setTimeout(() => { onCompleted(isPaper ? "纸质答卷已进入识别与题号审核流程" : "资料已进入本地档案与 OCR 审核流程"); }, 450); };
+  const complete = async () => {
+    setImportError(null);
+    if (window.myEuclid) {
+      try {
+        setIsImporting(true);
+        const count = await desktopImport(isPaper ? "paper_response" : "source_document");
+        if (!count) { setIsImporting(false); return; }
+        setStep(2);
+        onCompleted(isPaper ? `已归档 ${count} 份纸质答卷，等待题号审核` : `已归档 ${count} 份资料，等待 OCR 与切分审核`);
+      } catch (error) {
+        setImportError(error instanceof Error ? error.message : "导入失败，请检查资料后重试。");
+      } finally { setIsImporting(false); }
+      return;
+    }
+    setStep(2);
+    window.setTimeout(() => onCompleted(isPaper ? "纸质答卷演示任务已建立" : "资料演示任务已建立"), 350);
+  };
   if (kind === "answer") return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card answer-modal"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">ONLINE ANSWER</p><h2>开始一份在线作答</h2><p>请选择题目后进入统一作答页。键入、手写与纸质附件会按时间线保存到同一题目中。</p><button className="primary-button wide-button" onClick={() => { onClose(); openTraining(); }}><Play size={16} /> 打开示例题面</button></div></div>;
-  return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">LOCAL IMPORT · STEP {step} / 2</p><h2>{title}</h2>{step === 1 ? <><p className="modal-copy">原始文件会保留在本地。{isPaper ? "提交后将识别页面、题号与手写作答区域；审核后进入与在线作答一致的评分流程。" : "导入后将生成 OCR、切分和标签建议，供你逐项审核。"}</p><label className="drop-zone"><input type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.txt,.md" onChange={handleFile} /><Upload size={24} /><strong>{fileName || "选择或拖拽文件"}</strong><span>支持 PDF、图片、扫描件、文本</span></label><div className="import-divider"><span>或</span></div><label className="url-field"><Link size={16} /><input value={url} onChange={e => setUrl(e.target.value)} placeholder="粘贴资料或 PDF 链接" /></label><div className="modal-actions"><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" disabled={!fileName && !url} onClick={complete}>{isPaper ? "建立答卷档案" : "建立资料档案"}<ChevronRight size={15} /></button></div></> : <div className="import-progress"><CheckCircle2 size={32} /><h3>{isPaper ? "已建立答卷审核任务" : "已建立资料审核任务"}</h3><p>{isPaper ? "下一步会按页识别题号、手写区域和作答归属。" : "下一步会显示页码、切分边界、OCR 文本与标签草案。"}</p><div className="progress-steps"><span className="done"><Check size={13} /> 原件归档</span><span className="done"><Check size={13} /> OCR 识别</span><span>审核切分</span></div><button className="primary-button wide-button" onClick={onClose}>返回工作台</button></div>}</div></div>;
+  return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">LOCAL IMPORT · STEP {step} / 2</p><h2>{title}</h2>{step === 1 ? <><p className="modal-copy">原始文件会保留在本地。{isPaper ? "提交后将识别页面、题号与手写作答区域；审核后进入与在线作答一致的评分流程。" : "导入后将生成 OCR、切分和标签建议，供你逐项审核。"}</p>{window.myEuclid ? <button className="native-file-button" onClick={complete} disabled={isImporting}><FolderOpen size={23} /><span><strong>{isImporting ? "正在归档本地文件…" : "从本机选择资料"}</strong><small>通过 macOS 原生文件选择器导入</small></span><ChevronRight size={17} /></button> : <><label className="drop-zone"><input type="file" accept=".pdf,.png,.jpg,.jpeg,.heic,.txt,.md" onChange={handleFile} /><Upload size={24} /><strong>{fileName || "选择或拖拽文件"}</strong><span>支持 PDF、图片、扫描件、文本</span></label><div className="import-divider"><span>或</span></div><label className="url-field"><Link size={16} /><input value={url} onChange={e => setUrl(e.target.value)} placeholder="粘贴资料或 PDF 链接" /></label></>}{importError && <p className="import-error"><CircleHelp size={14} /> {importError}</p>}<div className="modal-actions"><button className="secondary-button" onClick={onClose}>取消</button>{!window.myEuclid && <button className="primary-button" disabled={!fileName && !url} onClick={complete}>建立演示任务<ChevronRight size={15} /></button>}</div></> : <div className="import-progress"><CheckCircle2 size={32} /><h3>{isPaper ? "已建立答卷审核任务" : "已建立资料审核任务"}</h3><p>{isPaper ? "下一步会按页识别题号、手写区域和作答归属。" : "下一步会显示页码、切分边界、OCR 文本与标签草案。"}</p><div className="progress-steps"><span className="done"><Check size={13} /> 原件归档</span><span>等待 OCR</span><span>审核切分</span></div><button className="primary-button wide-button" onClick={onClose}>返回工作台</button></div>}</div></div>;
 }
 
 function TutorModal({ onClose }: { onClose: () => void }) {
@@ -172,14 +191,23 @@ export default function Home() {
   const [trainingId, setTrainingId] = useState("E-2025-07b");
   const [tutorOpen, setTutorOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
+  const refreshImportJobs = async () => { if (window.myEuclid) setImportJobs(await window.myEuclid.archive.listImportJobs()); };
+  useEffect(() => { void refreshImportJobs(); }, []);
+  const desktopImport = async (kind: MyEuclidImportKind) => {
+    if (!window.myEuclid) return 0;
+    const result = await window.myEuclid.archive.selectAndImport(kind);
+    if (!result.cancelled) await refreshImportJobs();
+    return result.jobs.length;
+  };
   const openTraining = (id = "E-2025-07b") => { setTrainingId(id); setActive("训练会话"); };
   const renderView = () => {
-    if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} />;
+    if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} />;
     if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已保存；可在错题证据和报告中继续复盘")} />;
     if (active === "错题证据") return <EvidenceView openTutor={() => setTutorOpen(true)} openTraining={openTraining} />;
     if (active === "报告与轨迹") return <ReportsView />;
-    return <Dashboard openImport={setImportKind} openTraining={openTraining} />;
+    return <Dashboard openImport={setImportKind} openTraining={openTraining} importedCount={importJobs.length} />;
   };
-  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => notify("本地备份会随 Electron 桌面版的导入导出功能启用")}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
+  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => notify(window.myEuclid ? "桌面版本地导出将在下一迭代接入" : "当前浏览器预览不访问本地资料")}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
 }
