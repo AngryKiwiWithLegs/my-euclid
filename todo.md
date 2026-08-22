@@ -75,4 +75,5 @@
 - [x] 在错题证据与报告页面接入真实本地评分记录、依据和长期指标空态。
 - [x] 建立评分档案—备份恢复—报告聚合的端到端验证，并更新开发文档。
 - [x] 设计用户主动触发的 AI Provider 与 macOS Keychain 密钥接入边界；未配置服务前不生成或伪造 AI 评分。
-- [ ] 推送 GitHub 私有仓库，并在目标 Apple Silicon Mac 验证评分报告与 DMG。
+- [x] 推送 GitHub 私有仓库，并完成 Linux 构建与完整回归验证。
+- [ ] 在目标 Apple Silicon Mac 验证评分报告、AI 服务配置流程与 DMG 打包。
