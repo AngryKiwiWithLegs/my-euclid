@@ -43,6 +43,29 @@ export interface ReviewPage {
   ocrText: string;
   ocrStatus: OcrStatus;
   reviewStatus: ReviewStatus;
+  regions: OcrRegion[];
+}
+
+export interface NormalizedRect { x: number; y: number; width: number; height: number; }
+
+export interface OcrRegion {
+  id: string;
+  pageId: string;
+  rect: NormalizedRect;
+  ocrText: string;
+  ocrStatus: OcrStatus;
+  createdAt: string;
+}
+
+export interface ReviewPagePreview {
+  pageId: string;
+  pageNumber: number;
+  available: boolean;
+  sourceKind: "pdf" | "image" | "text";
+  dataUrl?: string;
+  width?: number;
+  height?: number;
+  reason?: string;
 }
 
 export interface SubquestionDraft {

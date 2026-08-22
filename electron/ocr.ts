@@ -26,13 +26,19 @@ async function extractPdfText(filePath: string): Promise<ExtractedPage[]> {
 }
 
 async function extractImageText(filePath: string): Promise<ExtractedPage[]> {
+  try {
+    return [{ pageNumber: 1, ocrText: await recognizeImageBuffer(await readFile(filePath)), ocrStatus: "extracted" }];
+  } catch {
+    return [{ pageNumber: 1, ocrText: "", ocrStatus: "failed" }];
+  }
+}
+
+export async function recognizeImageBuffer(image: Buffer): Promise<string> {
   let worker: Awaited<ReturnType<typeof createWorker>> | undefined;
   try {
     worker = await createWorker("eng");
-    const result = await worker.recognize(filePath);
-    return [{ pageNumber: 1, ocrText: result.data.text.trim(), ocrStatus: "extracted" }];
-  } catch {
-    return [{ pageNumber: 1, ocrText: "", ocrStatus: "failed" }];
+    const result = await worker.recognize(image);
+    return result.data.text.trim();
   } finally {
     await worker?.terminate();
   }

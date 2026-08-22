@@ -2,7 +2,7 @@
 
 **My Euclid** 是一个面向个人使用的 macOS 欧几里得数学竞赛备考客户端。它将本地持有的题目资料转化为可追溯、可切分、可标注、可训练的数据集，并将线上作答与纸质答卷上传放入同一套评分、分析和复盘闭环。
 
-> 当前仓库已提供 **Electron 桌面壳、SQLite 本地归档与 React 工作台**。资料选择、文件复制归档和导入审核任务已通过受限 IPC 接入桌面模式；OCR、自动切分、AI 判卷和 IRT 训练将在后续迭代接入。
+> 当前仓库已提供 **Electron 桌面壳、SQLite 本地归档与 React 工作台**。桌面模式已接入资料选择、原件复制归档、文本层提取、图片 OCR、扫描 PDF 页图渲染、人工审核、区域框选与局部 OCR；自动切分建议、AI 判卷和 IRT 训练仍将在后续迭代接入。
 
 ## 已确认的产品能力
 
@@ -24,7 +24,7 @@
 | [系统架构](./docs/ARCHITECTURE.md) | Electron、React、本地数据库、AI 调用和安全边界。 |
 | [数据模型](./docs/DATA-MODEL.md) | 题源、题目、小问、作答、评分、标签与 IRT 实体关系。 |
 | [导入导出规范](./docs/IMPORT-EXPORT.md) | 本地文件、URL、纸质答卷与备份归档格式。 |
-| [OCR 与审核工作流](./docs/OCR-REVIEW.md) | 页面级文本提取、人工 OCR 修订和题目小问切分确认。 |
+| [OCR 与审核工作流](./docs/OCR-REVIEW.md) | PDF/图片页面预览、局部 OCR 审计、人工文本修订与题目小问切分确认。 |
 | [统一作答与本地迁移](./docs/LOCAL-MIGRATION.md) | 作答版本、答案附件、备份包、预检和恢复边界。 |
 | [笔迹作答与回放](./docs/INK-CANVAS.md) | 图层、笔画、SVG 快照、回放和本地备份恢复。 |
 | [开发说明](./docs/DEVELOPMENT.md) | 当前原型的运行方式和后续 DMG 打包路线。 |
@@ -37,6 +37,8 @@ pnpm dev
 ```
 
 浏览器打开开发服务地址即可查看“欧几里得档案室”工作台预览。浏览器预览不会接触本地资料；要验证真实本地归档，请使用 `pnpm dev:desktop` 启动 Electron。
+
+本地回归验证会覆盖归档、PDF/图片 OCR、扫描 PDF 页图渲染、区域 OCR、笔迹与备份恢复。构建桌面端后，可运行 `pnpm exec electron --runAsNode scripts/verify-region-ocr.mjs /tmp/euclid-region-ocr-scan-sample.pdf` 验证区域 OCR；PDF 夹具可由 `manus-md-to-pdf scripts/fixtures/region-ocr-scan-sample.md /tmp/euclid-region-ocr-scan-sample.pdf` 生成。
 
 ## 隐私与资料边界
 

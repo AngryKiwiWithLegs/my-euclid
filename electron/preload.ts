@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ArchiveHealth, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 
@@ -15,6 +15,8 @@ contextBridge.exposeInMainWorld("myEuclid", {
   review: {
     listDocuments: (): Promise<ReviewDocumentSummary[]> => ipcRenderer.invoke("review:list-documents"),
     getDocument: (sourceDocumentId: string): Promise<ReviewDocumentDetail | null> => ipcRenderer.invoke("review:get-document", sourceDocumentId),
+    getPagePreview: (pageId: string): Promise<ReviewPagePreview> => ipcRenderer.invoke("review:get-page-preview", pageId),
+    recognizeRegion: (input: { pageId: string; rect: NormalizedRect }): Promise<OcrRegion> => ipcRenderer.invoke("review:recognize-region", input),
     updatePageOcr: (pageId: string, ocrText: string): Promise<void> => ipcRenderer.invoke("review:update-page-ocr", pageId, ocrText),
     saveQuestionDrafts: (sourceDocumentId: string, questions: QuestionDraft[]): Promise<void> => ipcRenderer.invoke("review:save-question-drafts", sourceDocumentId, questions),
   },

@@ -17,3 +17,4 @@ try {
 } finally {
   rmSync(directory, { recursive: true, force: true });
 }
+process.exit(0);

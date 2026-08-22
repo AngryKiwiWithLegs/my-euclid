@@ -1,7 +1,7 @@
 import Database from "better-sqlite3";
 import path from "node:path";
 import type { App } from "electron";
-import type { ArchiveHealth, ImportJobSummary, InkLayer, InkResponseDetail, InkSaveResult, InkStroke, PracticeResponse, PracticeSessionDetail, QuestionDraft, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ArchiveHealth, ImportJobSummary, InkLayer, InkResponseDetail, InkSaveResult, InkStroke, NormalizedRect, OcrRegion, PracticeResponse, PracticeSessionDetail, QuestionDraft, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 let database: Database.Database | null = null;
 
@@ -166,6 +166,27 @@ function migrate(db: Database.Database) {
     `);
     db.pragma("user_version = 4");
   }
+  if (currentVersion < 5) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ocr_region_runs (
+        id TEXT PRIMARY KEY,
+        page_id TEXT NOT NULL REFERENCES document_pages(id) ON DELETE CASCADE,
+        x REAL NOT NULL CHECK (x >= 0 AND x <= 1),
+        y REAL NOT NULL CHECK (y >= 0 AND y <= 1),
+        width REAL NOT NULL CHECK (width > 0 AND width <= 1),
+        height REAL NOT NULL CHECK (height > 0 AND height <= 1),
+        source_width INTEGER NOT NULL,
+        source_height INTEGER NOT NULL,
+        crop_sha256 TEXT NOT NULL,
+        crop_preview_data_url TEXT NOT NULL,
+        ocr_text TEXT NOT NULL,
+        ocr_status TEXT NOT NULL CHECK (ocr_status IN ('pending', 'extracted', 'failed', 'reviewed')),
+        created_at TEXT NOT NULL
+      );
+      CREATE INDEX IF NOT EXISTS idx_ocr_region_runs_page ON ocr_region_runs(page_id, created_at DESC);
+    `);
+    db.pragma("user_version = 5");
+  }
 }
 
 export function listImportJobs(app: App): ImportJobSummary[] {
@@ -222,10 +243,27 @@ export function getReviewDocument(app: App, sourceDocumentId: string): ReviewDoc
     WHERE d.id = ? GROUP BY d.id
   `).get(sourceDocumentId) as ReviewDocumentSummary | undefined;
   if (!document) return null;
-  const pages = db.prepare(`SELECT id, page_number AS pageNumber, COALESCE(ocr_text, '') AS ocrText, ocr_status AS ocrStatus, review_status AS reviewStatus FROM document_pages WHERE source_document_id = ? ORDER BY page_number`).all(sourceDocumentId) as ReviewPage[];
+  const pageRows = db.prepare(`SELECT id, page_number AS pageNumber, COALESCE(ocr_text, '') AS ocrText, ocr_status AS ocrStatus, review_status AS reviewStatus FROM document_pages WHERE source_document_id = ? ORDER BY page_number`).all(sourceDocumentId) as Array<Omit<ReviewPage, "regions">>;
+  const regions = db.prepare(`SELECT id, page_id AS pageId, x, y, width, height, ocr_text AS ocrText, ocr_status AS ocrStatus, created_at AS createdAt FROM ocr_region_runs WHERE page_id IN (SELECT id FROM document_pages WHERE source_document_id = ?) ORDER BY created_at DESC`).all(sourceDocumentId) as Array<{ id: string; pageId: string; x: number; y: number; width: number; height: number; ocrText: string; ocrStatus: OcrRegion["ocrStatus"]; createdAt: string }>;
+  const pages: ReviewPage[] = pageRows.map(page => ({ ...page, regions: regions.filter(region => region.pageId === page.id).map(({ x, y, width, height, ...region }) => ({ ...region, rect: { x, y, width, height } })) }));
   const questions = db.prepare(`SELECT id, page_id AS pageId, label, title, prompt_text AS promptText, ordinal FROM question_drafts WHERE source_document_id = ? ORDER BY ordinal`).all(sourceDocumentId) as QuestionDraft[];
   const subquestions = db.prepare(`SELECT id, question_draft_id AS questionId, label, prompt_text AS text, ordinal FROM subquestion_drafts WHERE question_draft_id IN (SELECT id FROM question_drafts WHERE source_document_id = ?) ORDER BY ordinal`).all(sourceDocumentId) as Array<{ id: string; questionId: string; label: string; text: string; ordinal: number }>;
   return { ...document, pages, questions: questions.map(question => ({ ...question, subquestions: subquestions.filter(sub => sub.questionId === question.id).map(({ questionId: _questionId, ...sub }) => sub) })) };
+}
+
+export function getReviewPageSource(app: App, pageId: string) {
+  const db = getDatabase(app);
+  return db.prepare(`SELECT p.id AS pageId, p.page_number AS pageNumber, d.stored_name AS storedName, d.mime_type AS mimeType, d.original_name AS originalName
+    FROM document_pages p JOIN source_documents d ON d.id = p.source_document_id WHERE p.id = ?`).get(pageId) as { pageId: string; pageNumber: number; storedName: string; mimeType: string; originalName: string } | undefined;
+}
+
+export function saveOcrRegionRun(app: App, input: { pageId: string; rect: NormalizedRect; sourceWidth: number; sourceHeight: number; cropSha256: string; cropPreviewDataUrl: string; ocrText: string; ocrStatus: OcrRegion["ocrStatus"] }): OcrRegion {
+  const db = getDatabase(app);
+  const id = crypto.randomUUID();
+  const createdAt = new Date().toISOString();
+  db.prepare(`INSERT INTO ocr_region_runs (id, page_id, x, y, width, height, source_width, source_height, crop_sha256, crop_preview_data_url, ocr_text, ocr_status, created_at)
+    VALUES (@id, @pageId, @x, @y, @width, @height, @sourceWidth, @sourceHeight, @cropSha256, @cropPreviewDataUrl, @ocrText, @ocrStatus, @createdAt)`).run({ id, pageId: input.pageId, ...input.rect, sourceWidth: input.sourceWidth, sourceHeight: input.sourceHeight, cropSha256: input.cropSha256, cropPreviewDataUrl: input.cropPreviewDataUrl, ocrText: input.ocrText.slice(0, 250_000), ocrStatus: input.ocrStatus, createdAt });
+  return { id, pageId: input.pageId, rect: input.rect, ocrText: input.ocrText.slice(0, 250_000), ocrStatus: input.ocrStatus, createdAt };
 }
 
 export function updatePageOcr(app: App, pageId: string, ocrText: string) {

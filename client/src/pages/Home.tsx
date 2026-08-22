@@ -4,6 +4,7 @@
  */
 import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { InkCanvas } from "@/components/InkCanvas";
+import { OcrRegionSelector } from "@/components/OcrRegionSelector";
 import {
   Archive,
   ArrowLeft,
@@ -129,6 +130,8 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
   const [pageText, setPageText] = useState("");
   const [drafts, setDrafts] = useState<MyEuclidQuestionDraft[]>([]);
   const [loading, setLoading] = useState(false);
+  const [pagePreview, setPagePreview] = useState<MyEuclidReviewPagePreview | null>(null);
+  const [recognizingRegion, setRecognizingRegion] = useState(false);
 
   useEffect(() => { if (!selectedId && documents[0]) setSelectedId(documents[0].sourceDocumentId); }, [documents, selectedId]);
   useEffect(() => {
@@ -144,6 +147,20 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
     })();
   }, [selectedId]);
   const activePage = detail?.pages.find(page => page.id === pageId) ?? null;
+  useEffect(() => {
+    let cancelled = false;
+    setPagePreview(null);
+    if (!pageId || !window.myEuclid) return () => { cancelled = true; };
+    void (async () => {
+      try {
+        const preview = await window.myEuclid!.review.getPagePreview(pageId);
+        if (!cancelled) setPagePreview(preview);
+      } catch (error) {
+        if (!cancelled) setPagePreview({ pageId, pageNumber: activePage?.pageNumber ?? 0, sourceKind: "text", available: false, reason: error instanceof Error ? error.message : "无法生成本地页面预览。" });
+      }
+    })();
+    return () => { cancelled = true; };
+  }, [pageId]);
   const selectPage = (nextPageId: string) => { setPageId(nextPageId); setPageText(detail?.pages.find(page => page.id === nextPageId)?.ocrText ?? ""); };
   const savePage = async () => {
     if (!pageId || !window.myEuclid) return;
@@ -166,12 +183,28 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
     await refreshDocuments();
     notify("题目与小问切分已确认并写入本地档案");
   };
+  const recognizeRegion = async (rect: MyEuclidNormalizedRect) => {
+    if (!pageId || !selectedId || !window.myEuclid) return;
+    try {
+      setRecognizingRegion(true);
+      await window.myEuclid.review.recognizeRegion({ pageId, rect });
+      const next = await window.myEuclid.review.getDocument(selectedId);
+      setDetail(next);
+      await refreshDocuments();
+      notify("局部 OCR 已保存为独立证据；请审核后再采用文本。");
+    } catch (error) { notify(error instanceof Error ? error.message : "局部 OCR 失败"); } finally { setRecognizingRegion(false); }
+  };
+  const adoptRegionText = (text: string) => {
+    if (!text.trim()) return;
+    setPageText(current => current.trim() ? `${current.trim()}\n\n${text.trim()}` : text.trim());
+    notify("局部识别文本已添加到编辑区；保存后才会确认本页 OCR。");
+  };
 
   if (!window.myEuclid) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><FileSearch size={32} /><h3>浏览器预览不访问你的本地资料。</h3><p>请通过 `pnpm dev:desktop` 启动桌面版本，导入资料后在这里审核页面、OCR 文本、题目和小问。</p></div></div>;
   if (!documents.length) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><Archive size={32} /><h3>还没有待审核资料。</h3><p>从“工作台”或“题库档案”导入 PDF、图片或纸质答卷后，系统会在本地建立页面记录，并把它们列在这里。</p></div></div>;
   return <div className="view-shell review-view"><SectionTitle eyebrow="LOCAL OCR · HUMAN REVIEW" title="审核工作台" action={<span className="subtle-caption">原件、OCR 版本与确认切分均保存在本机</span>} />
     <div className="review-layout"><aside className="review-doc-list"><p className="eyebrow">待审核资料 · {documents.length}</p>{documents.map(document => <button key={document.sourceDocumentId} className={selectedId === document.sourceDocumentId ? "is-selected" : ""} onClick={() => setSelectedId(document.sourceDocumentId)}><FileText size={16} /><span><strong>{document.originalName}</strong><small>{document.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {document.pageCount} 页</small></span><i>{document.reviewStatus === "needs_review" ? "待审" : "已审"}</i></button>)}</aside>
-      <section className="review-page-panel">{loading || !detail ? <div className="review-loading">正在读取本地审核档案…</div> : <><div className="review-panel-head"><div><p className="eyebrow">PAGE REVIEW</p><h3>{detail.originalName}</h3></div><span className="status-pill">{activePage?.ocrStatus === "failed" ? "OCR 待重试" : activePage?.ocrStatus === "pending" ? "等待 OCR" : "可人工确认"}</span></div><div className="page-tabs">{detail.pages.map(page => <button key={page.id} className={pageId === page.id ? "is-selected" : ""} onClick={() => selectPage(page.id)}>P.{page.pageNumber}<small>{page.ocrStatus === "extracted" ? "已提取" : page.ocrStatus === "failed" ? "失败" : "待处理"}</small></button>)}</div><div className="original-preview"><span className="page-watermark">{activePage ? String(activePage.pageNumber).padStart(2, "0") : "—"}</span><div><p className="eyebrow">ORIGINAL PAGE LINK</p><strong>原始页码已关联</strong><small>桌面版会保留源文件、页码和本次 OCR 版本；本轮先提供文本审核，图像标注将在后续添加。</small></div></div><label className="ocr-editor"><span><strong>OCR 文本</strong><small>可直接修订识别错误，保存后保留为人工审核版。</small></span><textarea value={pageText} onChange={event => setPageText(event.target.value)} placeholder="本地 OCR 提取的文本会显示在这里。" /></label><div className="review-actions"><span>{activePage?.reviewStatus === "confirmed" ? <><CheckCircle2 size={15} /> 已确认本页文本</> : "修改后请保存本页文本"}</span><button className="primary-button" onClick={savePage}><Save size={15} /> 保存本页 OCR</button></div></>}</section>
+      <section className="review-page-panel">{loading || !detail ? <div className="review-loading">正在读取本地审核档案…</div> : <><div className="review-panel-head"><div><p className="eyebrow">PAGE REVIEW</p><h3>{detail.originalName}</h3></div><span className="status-pill">{activePage?.ocrStatus === "failed" ? "OCR 待重试" : activePage?.ocrStatus === "pending" ? "等待 OCR" : "可人工确认"}</span></div><div className="page-tabs">{detail.pages.map(page => <button key={page.id} className={pageId === page.id ? "is-selected" : ""} onClick={() => selectPage(page.id)}>P.{page.pageNumber}<small>{page.ocrStatus === "extracted" ? "已提取" : page.ocrStatus === "failed" ? "失败" : "待处理"}</small></button>)}</div><div className="original-preview"><span className="page-watermark">{activePage ? String(activePage.pageNumber).padStart(2, "0") : "—"}</span><div><p className="eyebrow">ORIGINAL PAGE LINK</p><strong>原始页码已关联</strong><small>拖拽框选的局部识别会单独留存，只有你点击采用并保存时才会进入本页人工 OCR。</small></div></div><OcrRegionSelector preview={pagePreview} regions={activePage?.regions ?? []} isBusy={recognizingRegion} onRecognize={recognizeRegion} onUseText={adoptRegionText} /><label className="ocr-editor"><span><strong>OCR 文本</strong><small>可直接修订识别错误，保存后保留为人工审核版。</small></span><textarea value={pageText} onChange={event => setPageText(event.target.value)} placeholder="本地 OCR 提取的文本会显示在这里。" /></label><div className="review-actions"><span>{activePage?.reviewStatus === "confirmed" ? <><CheckCircle2 size={15} /> 已确认本页文本</> : "修改后请保存本页文本"}</span><button className="primary-button" onClick={savePage}><Save size={15} /> 保存本页 OCR</button></div></>}</section>
       <section className="draft-panel">{detail && <><div className="review-panel-head"><div><p className="eyebrow">QUESTION BOUNDARIES</p><h3>题目与小问切分</h3></div><button className="icon-label" onClick={addQuestion}><Plus size={15} /> 新增题目</button></div><p className="draft-note">从 OCR 文本创建题目草案，再确认写入本地档案。当前版本不会自动替换你的人工编辑。</p><div className="draft-list">{drafts.map((draft, index) => <article key={`${draft.id ?? "new"}-${index}`} className="draft-card"><div className="draft-card-head"><span className="draft-index">{String(index + 1).padStart(2, "0")}</span><input value={draft.label} onChange={event => updateDraft(index, "label", event.target.value)} aria-label="题号" /><button className="remove-draft" onClick={() => setDrafts(current => current.filter((_, draftIndex) => draftIndex !== index))} aria-label="删除题目草案"><Trash2 size={15} /></button></div><input className="draft-title" value={draft.title} onChange={event => updateDraft(index, "title", event.target.value)} aria-label="题目标题" /><textarea value={draft.promptText} onChange={event => updateDraft(index, "promptText", event.target.value)} aria-label="题目文本" /><label className="draft-page-select">来源页<select value={draft.pageId} onChange={event => updateDraft(index, "pageId", event.target.value)}>{detail.pages.map(page => <option key={page.id} value={page.id}>第 {page.pageNumber} 页</option>)}</select></label></article>)}{!drafts.length && <div className="no-drafts"><Sparkles size={17} /> 先新增一题，或等待后续自动切分建议。</div>}</div><button className="primary-button wide-button" onClick={saveDrafts} disabled={!drafts.length}><Check size={15} /> 确认并写入题目档案</button></>}</section>
     </div></div>;
 }

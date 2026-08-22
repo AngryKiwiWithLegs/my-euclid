@@ -5,12 +5,29 @@ import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archi
 import { exportBackup, preflightBackup, restoreBackup } from "./backup.js";
 import { databaseHealth, getDatabase, getInkResponse, listImportJobs, saveInkResponse } from "./database.js";
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
+import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { ImportKind, ImportResult, QuestionDraft, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
+const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
+
+function requireLocalId(value: unknown, label: string) {
+  if (typeof value !== "string" || !uuidPattern.test(value)) throw new Error(`${label}无效。`);
+  return value;
+}
+
+function requireNormalizedRect(value: unknown): NormalizedRect {
+  if (!value || typeof value !== "object") throw new Error("框选区域无效。");
+  const rect = value as Record<string, unknown>;
+  const numbers = [rect.x, rect.y, rect.width, rect.height];
+  if (!numbers.every(number => typeof number === "number" && Number.isFinite(number))) throw new Error("框选区域包含无效坐标。");
+  const [x, y, width, height] = numbers as number[];
+  if (x < 0 || y < 0 || width < 0.01 || height < 0.01 || width > 1 || height > 1 || x + width > 1 || y + height > 1) throw new Error("框选区域超出原始页面边界。");
+  return { x, y, width, height };
+}
 
 function createWindow() {
   const window = new BrowserWindow({
@@ -39,8 +56,13 @@ app.whenReady().then(async () => {
   ipcMain.handle("archive:get-health", () => databaseHealth(app, true));
   ipcMain.handle("archive:list-import-jobs", () => listImportJobs(app));
   ipcMain.handle("review:list-documents", () => listReviewDocuments(app));
-  ipcMain.handle("review:get-document", (_event, sourceDocumentId: string) => getReviewDocument(app, sourceDocumentId));
-  ipcMain.handle("review:update-page-ocr", (_event, pageId: string, ocrText: string) => updatePageOcr(app, pageId, ocrText));
+  ipcMain.handle("review:get-document", (_event, sourceDocumentId: string) => getReviewDocument(app, requireLocalId(sourceDocumentId, "资料标识")));
+  ipcMain.handle("review:get-page-preview", (_event, pageId: string) => getReviewPagePreview(app, requireLocalId(pageId, "页面标识")));
+  ipcMain.handle("review:recognize-region", async (_event, input: { pageId: string; rect: NormalizedRect }) => recognizeReviewRegion(app, requireLocalId(input?.pageId, "页面标识"), requireNormalizedRect(input?.rect)));
+  ipcMain.handle("review:update-page-ocr", (_event, pageId: string, ocrText: string) => {
+    if (typeof ocrText !== "string" || ocrText.length > 500_000) throw new Error("OCR 文本无效或超过保存限制。");
+    return updatePageOcr(app, requireLocalId(pageId, "页面标识"), ocrText);
+  });
   ipcMain.handle("review:save-question-drafts", (_event, sourceDocumentId: string, questions: QuestionDraft[]) => saveQuestionDrafts(app, sourceDocumentId, questions));
   ipcMain.handle("practice:save-response", (_event, input: SavePracticeResponseInput) => {
     if (!input || !["keyboard", "handwritten"].includes(input.answerFormat) || !["draft", "submitted"].includes(input.status)) throw new Error("作答格式或保存状态无效。");

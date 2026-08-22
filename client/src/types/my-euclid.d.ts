@@ -7,7 +7,10 @@ declare global {
   interface MyEuclidArchiveHealth { mode: "desktop"; databaseReady: boolean; archiveReady: boolean; documentCount: number; pendingReviewCount: number; }
   type MyEuclidOcrStatus = "pending" | "extracted" | "failed" | "reviewed";
   type MyEuclidReviewStatus = "needs_review" | "confirmed";
-  interface MyEuclidReviewPage { id: string; pageNumber: number; ocrText: string; ocrStatus: MyEuclidOcrStatus; reviewStatus: MyEuclidReviewStatus; }
+  interface MyEuclidNormalizedRect { x: number; y: number; width: number; height: number; }
+  interface MyEuclidOcrRegion { id: string; pageId: string; rect: MyEuclidNormalizedRect; ocrText: string; ocrStatus: MyEuclidOcrStatus; createdAt: string; }
+  interface MyEuclidReviewPagePreview { pageId: string; pageNumber: number; available: boolean; sourceKind: "pdf" | "image" | "text"; dataUrl?: string; width?: number; height?: number; reason?: string; }
+  interface MyEuclidReviewPage { id: string; pageNumber: number; ocrText: string; ocrStatus: MyEuclidOcrStatus; reviewStatus: MyEuclidReviewStatus; regions: MyEuclidOcrRegion[]; }
   interface MyEuclidSubquestionDraft { id?: string; label: string; text: string; ordinal: number; }
   interface MyEuclidQuestionDraft { id?: string; pageId: string; label: string; title: string; promptText: string; ordinal: number; subquestions: MyEuclidSubquestionDraft[]; }
   interface MyEuclidReviewDocumentSummary { sourceDocumentId: string; originalName: string; kind: MyEuclidImportKind; importedAt: string; pageCount: number; reviewStatus: MyEuclidReviewStatus; }
@@ -33,6 +36,8 @@ declare global {
       review: {
         listDocuments: () => Promise<MyEuclidReviewDocumentSummary[]>;
         getDocument: (sourceDocumentId: string) => Promise<MyEuclidReviewDocumentDetail | null>;
+        getPagePreview: (pageId: string) => Promise<MyEuclidReviewPagePreview>;
+        recognizeRegion: (input: { pageId: string; rect: MyEuclidNormalizedRect }) => Promise<MyEuclidOcrRegion>;
         updatePageOcr: (pageId: string, ocrText: string) => Promise<void>;
         saveQuestionDrafts: (sourceDocumentId: string, questions: MyEuclidQuestionDraft[]) => Promise<void>;
       };
