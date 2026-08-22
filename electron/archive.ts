@@ -3,6 +3,8 @@ import { copyFile, mkdir, readFile } from "node:fs/promises";
 import path from "node:path";
 import type { App } from "electron";
 import { getDatabase } from "./database.js";
+import { createDocumentPages } from "./database.js";
+import { extractPages } from "./ocr.js";
 import type { ImportJobSummary, ImportKind } from "./types.js";
 
 const acceptedExtensions = new Set([".pdf", ".png", ".jpg", ".jpeg", ".heic", ".txt", ".md"]);
@@ -40,7 +42,8 @@ export async function archiveFiles(app: App, filePaths: string[], kind: ImportKi
     const jobId = randomUUID();
     const storedName = `${sourceDocumentId}${extension}`;
     const sha256 = createHash("sha256").update(contents).digest("hex");
-    await copyFile(filePath, path.join(destination, storedName));
+    const storedPath = path.join(destination, storedName);
+    await copyFile(filePath, storedPath);
     const status = "needs_review" as const;
     const transaction = db.transaction(() => {
       db.prepare(`INSERT INTO source_documents (id, original_name, source_kind, stored_name, sha256, mime_type, size_bytes, imported_at)
@@ -52,6 +55,8 @@ export async function archiveFiles(app: App, filePaths: string[], kind: ImportKi
         VALUES (@id, @sourceDocumentId, @status, @createdAt, @updatedAt)`).run({ id: jobId, sourceDocumentId, status, createdAt, updatedAt: createdAt });
     });
     transaction();
+    const pages = await extractPages(storedPath);
+    createDocumentPages(app, sourceDocumentId, pages);
     jobs.push({ id: jobId, sourceDocumentId, originalName, kind, status, createdAt });
   }
   return jobs;

@@ -125,6 +125,9 @@ importers:
       next-themes:
         specifier: ^0.4.6
         version: 0.4.6(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
+      pdfjs-dist:
+        specifier: ^6.2.108
+        version: 6.2.108
       react:
         specifier: ^19.2.1
         version: 19.2.1
@@ -155,6 +158,9 @@ importers:
       tailwindcss-animate:
         specifier: ^1.0.7
         version: 1.0.7(tailwindcss@4.1.14)
+      tesseract.js:
+        specifier: ^7.0.0
+        version: 7.0.0
       vaul:
         specifier: ^1.1.2
         version: 1.1.2(@types/react-dom@19.2.1(@types/react@19.2.1))(@types/react@19.2.1)(react-dom@19.2.1(react@19.2.1))(react@19.2.1)
@@ -791,6 +797,76 @@ packages:
 
   '@mermaid-js/parser@0.6.3':
     resolution: {integrity: sha512-lnjOhe7zyHjc+If7yT4zoedx2vo4sHaTmtkl1+or8BRTnCtDmcTpAjpzDSfCZrshM5bCoz0GyidzadJAH1xobA==}
+
+  '@napi-rs/canvas-android-arm64@1.0.7':
+    resolution: {integrity: sha512-d5p4hHTykc/9PjiBXkvCH/IC5hT5jH7BjQ1u8ITq+G8x4VmvveOHdy/4BWYcC3ebWRmrG9zEc/oCTy+Yf3iZ4A==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [android]
+
+  '@napi-rs/canvas-darwin-arm64@1.0.7':
+    resolution: {integrity: sha512-jKfZl2QDqBr6/Ap/8NKkX0Po9SFfVjUPBJbQQmYGVtQQIazWWIAO60riH3Mz2sOyysa2oJO39sLEfXerypu0vg==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [darwin]
+
+  '@napi-rs/canvas-darwin-x64@1.0.7':
+    resolution: {integrity: sha512-v1asrnKBu0tD+sdSD2qVIUfhoXSrr8LFTn7z76pN+8xsiOrmFcAVty57R/5DB8ZNqNLKsUBDXFSrzf4Wt9NaSg==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [darwin]
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.7':
+    resolution: {integrity: sha512-c4Hcu4L5bXCgLY8jrZ2hy/Avl65MsbfH9DqNWrrd9InbpBZZF/rmrh7XkgmTUmOFcUrt/PaFSBinW2C0moDgcA==}
+    engines: {node: '>= 10'}
+    cpu: [arm]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-arm64-gnu@1.0.7':
+    resolution: {integrity: sha512-OVW6T1x65BTVfWb//xylCoWxbdII+nzHu3L5T035aerBAnZ5e0nmeTMkMEO9qQrVJq4WcWW8hp+T0dF+JvJPUQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-arm64-musl@1.0.7':
+    resolution: {integrity: sha512-KX/k1UO61XdKlXxhtIkq1ZUH8uP+NNK4vSrBcM2/4wWUUCZaG93BU5s0KuE9n+TFn0jEoqLSlXOuH1pYuV5dcQ==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-riscv64-gnu@1.0.7':
+    resolution: {integrity: sha512-r+0Bg+fK8r2AsrbeT7JwBUAERZSjlyhfAMQfZE/zxYGmbswS92hN0FPjynVWbeuz5fIrLfZ6JA5pH8V6drN6qw==}
+    engines: {node: '>= 10'}
+    cpu: [riscv64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-x64-gnu@1.0.7':
+    resolution: {integrity: sha512-0tT9KzEcTfb6MWdUWIDfy6uq6UNF691r/9NfXxxl8s9+G5QrD7VP1UC+PAwzsCzJTClIKyidNau/grYTL+QmHw==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@napi-rs/canvas-linux-x64-musl@1.0.7':
+    resolution: {integrity: sha512-rvT0xo1xA+C7e+U/2ngsxWsl9gC5knHU+z8KTT5VK0Zos4AQbWZvtjvegrmzxm4o2yHE32Lexj6CDEJNvuTczA==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [linux]
+
+  '@napi-rs/canvas-win32-arm64-msvc@1.0.7':
+    resolution: {integrity: sha512-N6s3yoFFPUDkfRpjUiKERVYkli7ex5Sf0Bu/My6D6gOGYxYolC1KvL6x8U0aN+ScCWAzbkIWcMYR9g0OGsFuVw==}
+    engines: {node: '>= 10'}
+    cpu: [arm64]
+    os: [win32]
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.7':
+    resolution: {integrity: sha512-SKTNdBV/ljfhkPsLhXjm4x2PQ0ILpc0PhkBzRHuroJXidZUaF5yh0j3s3dIzB8PrRmW+nEASzyMTaWT3nH1ywQ==}
+    engines: {node: '>= 10'}
+    cpu: [x64]
+    os: [win32]
+
+  '@napi-rs/canvas@1.0.7':
+    resolution: {integrity: sha512-26wVFEgs6gbe7wmzCrud1pK8q6oOgcUu7OOF24BuazB8ZUCskU9ZSLrCjoWIFVxx09rjAxsXxPleaWowHvdPCA==}
+    engines: {node: '>= 10'}
 
   '@noble/hashes@1.4.0':
     resolution: {integrity: sha512-V1JJ1WTRUqHHrOSh597hURcMqVKVGL/ea3kv0gSnEdsEZ0/+VyPghM1lMNGc00z7CIQorSvbKpuJkxvuHbvdbg==}
@@ -2041,6 +2117,9 @@ packages:
   bluebird@3.7.2:
     resolution: {integrity: sha512-XpNj6GDQzdfW+r2Wnn7xiSAd7TM3jzkxGXBGTtWKuSXv1xUV+azxAm8jdWZN06QTQk+2N2XB9jRDkvbmQmcRtg==}
 
+  bmp-js@0.1.0:
+    resolution: {integrity: sha512-vHdS19CnY3hwiNdkaqk93DvjVLfbEcI8mys4UjuWrlX1haDmroo8o4xCzh4wD6DGV6HxRCyauwhHRqMTfERtjw==}
+
   body-parser@1.20.3:
     resolution: {integrity: sha512-7rAxByjUMqQ3/bHJy7D6OGXvx/MMc4IqBn/X0fcM1QUcAItpZrBEYhWGem+tzXH90c+G01ypMcYJBO9Y30203g==}
     engines: {node: '>= 0.8', npm: 1.2.8000 || >= 1.4.16}
@@ -2977,6 +3056,9 @@ packages:
     resolution: {integrity: sha512-4fCk79wshMdzMp2rH06qWrJE4iolqLhCUH+OiuIgU++RB0+94NlDL81atO7GX55uUKueo0txHNtvEyI6D7WdMw==}
     engines: {node: '>=0.10.0'}
 
+  idb-keyval@6.3.0:
+    resolution: {integrity: sha512-um+2dgAWmYsu615EXpWVwSmapJhON0G43t3Ka/EVaohzPQXSMqKEqeDK/oIW3Ow+BXaF2PvSc+oBTFp793A5Ow==}
+
   inflight@1.0.6:
     resolution: {integrity: sha512-k92I/b08q4wvFscXCLvqfsHCrjrF7yiXsQuIVvVE7N82W3+aqpzuUdBbfhWcy/FZR3/4IgflMgKLOsvPDrGCJA==}
     deprecated: This module is not supported, and leaks memory. Do not use it. Check out lru-cache if you want a good and tested way to coalesce async requests by a key value, which is much more comprehensive and powerful.
@@ -3023,6 +3105,9 @@ packages:
   is-plain-obj@4.1.0:
     resolution: {integrity: sha512-+Pgi+vMuUNkJyExiMBt5IlFoMyKnr5zhJ4Uspz58WOhBF5QoIZkFyNHIbBAtHwzVAgk5RtndVNsDRN61/mmDqg==}
     engines: {node: '>=12'}
+
+  is-url@1.2.4:
+    resolution: {integrity: sha512-ITvGim8FhRiYe4IQ5uHSkj7pVaPDrCTkNd3yq3cV7iZAcJdHTUMPMEHcqSOy9xZ9qFenQCvi+2wjH9a1nXqHww==}
 
   isarray@1.0.0:
     resolution: {integrity: sha512-VLghIWNM6ELQzo7zwmcg0NmTVyWKYjvIeM83yjp0wRDTmUnrM678fQbcKBo6n2CJEF0szoG//ytg+TKla89ALQ==}
@@ -3501,6 +3586,15 @@ packages:
   node-api-version@0.2.1:
     resolution: {integrity: sha512-2xP/IGGMmmSQpI1+O/k72jF/ykvZ89JeuKX3TLJAYPDVLUalrshrLHkeVcCCZqG/eEa635cr8IBYzgnDvM2O8Q==}
 
+  node-fetch@2.7.0:
+    resolution: {integrity: sha512-c4FRfUm/dbcWZ7U+1Wq0AwCyFL+3nt2bEw05wfxSz+DWpWsitgmSgYmy2dQdWyKC1694ELPqMs/YzUSNozLt8A==}
+    engines: {node: 4.x || >=6.0.0}
+    peerDependencies:
+      encoding: ^0.1.0
+    peerDependenciesMeta:
+      encoding:
+        optional: true
+
   node-gyp@12.4.0:
     resolution: {integrity: sha512-OMcPNvqTCFUnNaBlmdgq+lfNqY7gTiSmNRDjY3uAXRyudeKZEZxu3CLtjMQrx4zZxCX2b/mpNqTtwuCJgXhHkw==}
     engines: {node: ^20.17.0 || >=22.9.0}
@@ -3550,6 +3644,10 @@ packages:
   oniguruma-to-es@4.3.3:
     resolution: {integrity: sha512-rPiZhzC3wXwE59YQMRDodUwwT9FZ9nNBwQQfsd1wfdtlKEyCdRV0avrTcSZ5xlIvGRVPd/cx6ZN45ECmS39xvg==}
 
+  opencollective-postinstall@2.0.3:
+    resolution: {integrity: sha512-8AV/sCtuzUeTo8gQK5qDZzARrulB3egtLzFgteqB2tcT4Mw7B8Kt7JcDHmltjz6FOAHsvTevk70gZEbhM4ZS9Q==}
+    hasBin: true
+
   p-cancelable@2.1.1:
     resolution: {integrity: sha512-BZOr3nRQHOntUjTrH8+Lh54smKHoHyur8We1V8DSMVrl5A2malOOwuJRnKRDjSnkoeBh4at6BwEnb5I7Jl31wg==}
     engines: {node: '>=8'}
@@ -3594,6 +3692,10 @@ packages:
   pathval@2.0.1:
     resolution: {integrity: sha512-//nshmD55c46FuFw26xV/xFAaB5HF9Xdap7HJBBnrKdAd6/GxDBaNA1870O79+9ueg61cZLSVc+OaFlfmObYVQ==}
     engines: {node: '>= 14.16'}
+
+  pdfjs-dist@6.2.108:
+    resolution: {integrity: sha512-YxFb+SQcodN2rnX9Tn3dHYlqfb7NjlzzfONPpJd+AKoKtUjEdevTfbC07d5TcczzOK6261auRkP/M8OBHs9vFQ==}
+    engines: {node: '>=22.13.0 || >=24'}
 
   pe-library@0.4.1:
     resolution: {integrity: sha512-eRWB5LBz7PpDu4PUlwT0PhnQfTQJlDDdPa35urV4Osrm0t0AqQFGn+UIkU3klZvwJ8KPO3VbBFsXquA6p6kqZw==}
@@ -3821,6 +3923,9 @@ packages:
     peerDependencies:
       react: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
       react-dom: ^16.0.0 || ^17.0.0 || ^18.0.0 || ^19.0.0
+
+  regenerator-runtime@0.13.11:
+    resolution: {integrity: sha512-kY1AZVr2Ra+t+piVaJ4gxaFaReZVH40AKNo7UCX6W+dEwBo/2oZJzqfuN1qLq1oL45o56cPaTXELwrTh8Fpggg==}
 
   regex-recursion@6.0.2:
     resolution: {integrity: sha512-0YCaSCq2VRIebiaUviZNs0cBz1kg5kVS2UKUfNIx8YVs1cN3AV7NTctO5FOKBA+UT2BPJIWZauYHPqJODG50cg==}
@@ -4122,6 +4227,12 @@ packages:
     resolution: {integrity: sha512-yYrrsWnrXMcdsnu/7YMYAofM1ktpL5By7vZhf15CrXijWWrEYZks5AXBudalfSWJLlnen/QUJUB5aoB0kqZUGA==}
     engines: {node: '>=6.0.0'}
 
+  tesseract.js-core@7.0.0:
+    resolution: {integrity: sha512-WnNH518NzmbSq9zgTPeoF8c+xmilS8rFIl1YKbk/ptuuc7p6cLNELNuPAzcmsYw450ca6bLa8j3t0VAtq435Vw==}
+
+  tesseract.js@7.0.0:
+    resolution: {integrity: sha512-exPBkd+z+wM1BuMkx/Bjv43OeLBxhL5kKWsz/9JY+DXcXdiBjiAch0V49QR3oAJqCaL5qURE0vx9Eo+G5YE7mA==}
+
   tiny-async-pool@1.3.0:
     resolution: {integrity: sha512-01EAw5EDrcVrdgyCLgoSPvqznC0sVxDSVeiOz09FUpjh71G79VCqneOr+xvt7T1r76CF6ZZfPjHorN2+d+3mqA==}
 
@@ -4163,6 +4274,9 @@ packages:
   toidentifier@1.0.1:
     resolution: {integrity: sha512-o5sSPKEkg/DIQNmH43V0/uerLrpzVedkUh8tGNvaeXpfpuwjKenlSox/2O/BTlZUtEe+JG7s5YhEz608PlAHRA==}
     engines: {node: '>=0.6'}
+
+  tr46@0.0.3:
+    resolution: {integrity: sha512-N3WMsuqV66lT30CrXNbEjx4GEwlow3v6rr4mCcv6prnfwhS01rkgyFdjPNBYd9br7LpXV1+Emh01fHnq2Gdgrw==}
 
   tree-kill@1.2.2:
     resolution: {integrity: sha512-L0Orpi8qGpRG//Nd+H90vFB+3iHnue1zSSGmNOOCh1GLJ7rUKVwV2HvijphGQS2UmhUZewS9VgvxYIdgr+fG1A==}
@@ -4457,11 +4571,20 @@ packages:
     engines: {node: '>=20.0.0'}
     hasBin: true
 
+  wasm-feature-detect@1.9.0:
+    resolution: {integrity: sha512-zonE+xlIIYtxPy++L24ow0hAD8CICb4+FgPyROd3buyXIqsJvUEDkBgfCCoXOd1Hu3DUr0GOfnPIdcGV+YpNaA==}
+
   web-namespaces@2.0.1:
     resolution: {integrity: sha512-bKr1DkiNa2krS7qxNtdrtHAmzuYGFQLiQ13TsorsdT6ULTkPLKuu5+GsFpDlg6JFjUTwX2DyhMPG2be8uPrqsQ==}
 
   webcrypto-core@1.9.2:
     resolution: {integrity: sha512-gsXecm82UQNlTBURJGuqOWy1Ww08S3kZUcr3aOJS02Pk0xLtkfeUAVC0u0xhgdonFme80edSJUIJyuvL/7250Q==}
+
+  webidl-conversions@3.0.1:
+    resolution: {integrity: sha512-2JAn3z8AR6rjK8Sm8orRC0h/bcl/DqL7tRPdGZ4I1CjdF+EaMLmYxBHyXuKL849eucPFhvBoxMsflfOb8kxaeQ==}
+
+  whatwg-url@5.0.0:
+    resolution: {integrity: sha512-saE57nupxk6v3HY35+jzBwYa0rKSy0XR8JSxZPwgLr7ys0IBzhGviA1/TUGJLmSVqs8pb9AnvICXEuOHLprYTw==}
 
   which@2.0.2:
     resolution: {integrity: sha512-BLI3Tl1TW3Pvl70l3yq3Y64i+awpwXqsGBYWkkqMtnbXgrMD+yj7rhW0kuEDxzJaYXGjEW5ogapKNMEKNMjibA==}
@@ -4536,6 +4659,9 @@ packages:
   yocto-queue@0.1.0:
     resolution: {integrity: sha512-rVksvsnNCdJ/ohGc6xgPwyN8eheCxsiLM8mxuE/t/mOVqJewPuO1miLpTHQiRgTKCLexL4MeAFVagts7HmNZ2Q==}
     engines: {node: '>=10'}
+
+  zlibjs@0.3.1:
+    resolution: {integrity: sha512-+J9RrgTKOmlxFSDHo0pI1xM6BLVUv+o0ZT9ANtCxGkjIVCCUdx9alUF8Gm+dGLKbkkkidWIHFDZHDMpfITt4+w==}
 
   zod@4.1.12:
     resolution: {integrity: sha512-JInaHOamG8pt5+Ey8kGmdcAcg3OL9reK8ltczgHTAwNhMys/6ThXHityHxVV2p3fkw/c+MAvBHFVYHFZDmjMCQ==}
@@ -5033,6 +5159,54 @@ snapshots:
   '@mermaid-js/parser@0.6.3':
     dependencies:
       langium: 3.3.1
+
+  '@napi-rs/canvas-android-arm64@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-darwin-arm64@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-darwin-x64@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm-gnueabihf@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-gnu@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-arm64-musl@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-riscv64-gnu@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-gnu@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-linux-x64-musl@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-win32-arm64-msvc@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas-win32-x64-msvc@1.0.7':
+    optional: true
+
+  '@napi-rs/canvas@1.0.7':
+    optionalDependencies:
+      '@napi-rs/canvas-android-arm64': 1.0.7
+      '@napi-rs/canvas-darwin-arm64': 1.0.7
+      '@napi-rs/canvas-darwin-x64': 1.0.7
+      '@napi-rs/canvas-linux-arm-gnueabihf': 1.0.7
+      '@napi-rs/canvas-linux-arm64-gnu': 1.0.7
+      '@napi-rs/canvas-linux-arm64-musl': 1.0.7
+      '@napi-rs/canvas-linux-riscv64-gnu': 1.0.7
+      '@napi-rs/canvas-linux-x64-gnu': 1.0.7
+      '@napi-rs/canvas-linux-x64-musl': 1.0.7
+      '@napi-rs/canvas-win32-arm64-msvc': 1.0.7
+      '@napi-rs/canvas-win32-x64-msvc': 1.0.7
+    optional: true
 
   '@noble/hashes@1.4.0': {}
 
@@ -6368,6 +6542,8 @@ snapshots:
 
   bluebird@3.7.2: {}
 
+  bmp-js@0.1.0: {}
+
   body-parser@1.20.3:
     dependencies:
       bytes: 3.1.2
@@ -7535,6 +7711,8 @@ snapshots:
     dependencies:
       safer-buffer: 2.1.2
 
+  idb-keyval@6.3.0: {}
+
   inflight@1.0.6:
     dependencies:
       once: 1.4.0
@@ -7569,6 +7747,8 @@ snapshots:
   is-hexadecimal@2.0.1: {}
 
   is-plain-obj@4.1.0: {}
+
+  is-url@1.2.4: {}
 
   isarray@1.0.0: {}
 
@@ -8232,6 +8412,10 @@ snapshots:
     dependencies:
       semver: 7.8.5
 
+  node-fetch@2.7.0:
+    dependencies:
+      whatwg-url: 5.0.0
+
   node-gyp@12.4.0:
     dependencies:
       env-paths: 2.2.1
@@ -8280,6 +8464,8 @@ snapshots:
       regex: 6.0.1
       regex-recursion: 6.0.2
 
+  opencollective-postinstall@2.0.3: {}
+
   p-cancelable@2.1.1: {}
 
   p-limit@3.1.0:
@@ -8317,6 +8503,10 @@ snapshots:
   pathe@2.0.3: {}
 
   pathval@2.0.1: {}
+
+  pdfjs-dist@6.2.108:
+    optionalDependencies:
+      '@napi-rs/canvas': 1.0.7
 
   pe-library@0.4.1: {}
 
@@ -8567,6 +8757,8 @@ snapshots:
       recharts-scale: 0.4.5
       tiny-invariant: 1.3.3
       victory-vendor: 36.9.2
+
+  regenerator-runtime@0.13.11: {}
 
   regex-recursion@6.0.2:
     dependencies:
@@ -8964,6 +9156,22 @@ snapshots:
       mkdirp: 0.5.6
       rimraf: 2.6.3
 
+  tesseract.js-core@7.0.0: {}
+
+  tesseract.js@7.0.0:
+    dependencies:
+      bmp-js: 0.1.0
+      idb-keyval: 6.3.0
+      is-url: 1.2.4
+      node-fetch: 2.7.0
+      opencollective-postinstall: 2.0.3
+      regenerator-runtime: 0.13.11
+      tesseract.js-core: 7.0.0
+      wasm-feature-detect: 1.9.0
+      zlibjs: 0.3.1
+    transitivePeerDependencies:
+      - encoding
+
   tiny-async-pool@1.3.0:
     dependencies:
       semver: 5.7.2
@@ -8994,6 +9202,8 @@ snapshots:
   tmp@0.2.7: {}
 
   toidentifier@1.0.1: {}
+
+  tr46@0.0.3: {}
 
   tree-kill@1.2.2: {}
 
@@ -9288,6 +9498,8 @@ snapshots:
       - debug
       - supports-color
 
+  wasm-feature-detect@1.9.0: {}
+
   web-namespaces@2.0.1: {}
 
   webcrypto-core@1.9.2:
@@ -9297,6 +9509,13 @@ snapshots:
       '@peculiar/utils': 2.0.3
       asn1js: 3.0.10
       tslib: 2.8.1
+
+  webidl-conversions@3.0.1: {}
+
+  whatwg-url@5.0.0:
+    dependencies:
+      tr46: 0.0.3
+      webidl-conversions: 3.0.1
 
   which@2.0.2:
     dependencies:
@@ -9370,6 +9589,8 @@ snapshots:
       yargs-parser: 22.0.0
 
   yocto-queue@0.1.0: {}
+
+  zlibjs@0.3.1: {}
 
   zod@4.1.12: {}
 

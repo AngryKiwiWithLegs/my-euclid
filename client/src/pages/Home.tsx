@@ -20,6 +20,7 @@ import {
   Download,
   FileText,
   FileUp,
+  FileSearch,
   Filter,
   FolderOpen,
   GraduationCap,
@@ -35,21 +36,25 @@ import {
   Play,
   ScanLine,
   Search,
+  Save,
   Send,
   Sparkles,
   Target,
   TimerReset,
   Undo2,
   Upload,
+  Plus,
+  Trash2,
   X,
 } from "lucide-react";
 
-type View = "工作台" | "题库档案" | "训练会话" | "错题证据" | "报告与轨迹";
+type View = "工作台" | "题库档案" | "审核工作台" | "训练会话" | "错题证据" | "报告与轨迹";
 type ImportKind = "source" | "paper" | "answer" | null;
 
 const navItems: { label: View; icon: typeof Archive }[] = [
   { label: "工作台", icon: Archive },
   { label: "题库档案", icon: LibraryBig },
+  { label: "审核工作台", icon: FileSearch },
   { label: "训练会话", icon: Target },
   { label: "错题证据", icon: BookOpenCheck },
   { label: "报告与轨迹", icon: BrainCircuit },
@@ -104,16 +109,70 @@ function EvidenceDrawer() {
   return <aside className="evidence-drawer"><div className="drawer-head"><div><p className="eyebrow">TRACEABILITY</p><h3>档案证据</h3></div></div><div className="evidence-list"><article className="evidence-item"><span className="navy-accent" /><div><p>OCR</p><small>导入后会显示页面、识别文本与小问边界。</small></div></article><article className="evidence-item"><span className="red-accent" /><div><p>标签</p><small>AI 建议与人工审核状态会并存、可回退。</small></div></article><article className="evidence-item"><span className="graphite-accent" /><div><p>归档</p><small>原始资料始终可由题目和报告回链查看。</small></div></article></div><div className="ai-note"><Sparkles size={18} /><div><strong>AI 仅在你发起后工作</strong><p>OCR、切分、评分和讲解均保留审核依据。</p></div></div><button className="outline-button"><Download size={15} /> 查看数据迁移规范</button></aside>;
 }
 
-function LibraryView({ openImport, openTraining, importJobs }: { openImport: (kind: ImportKind) => void; openTraining: (id: string) => void; importJobs: MyEuclidImportJob[] }) {
+function LibraryView({ openImport, openTraining, importJobs, openReview }: { openImport: (kind: ImportKind) => void; openTraining: (id: string) => void; importJobs: MyEuclidImportJob[]; openReview: () => void }) {
   const [query, setQuery] = useState("");
   const [filter, setFilter] = useState("全部模块");
   const filtered = questions.filter(q => `${q.source}${q.title}${q.tags.join("")}`.toLowerCase().includes(query.toLowerCase()) && (filter === "全部模块" || q.tags.includes(filter)));
   return <div className="view-shell"><SectionTitle eyebrow="SOURCE INDEX" title="题库档案" action={<div className="inline-actions"><button className="text-action" onClick={() => openImport("source")}><Upload size={15} /> 导入资料</button><button className="text-action" onClick={() => openImport("paper")}><Camera size={15} /> 上传答卷</button></div>} />
     <div className="library-toolbar"><label className="search-box"><Search size={16} /><input value={query} onChange={e => setQuery(e.target.value)} placeholder="搜索题号、来源、知识点" /></label><label className="filter-select"><Filter size={15} /><select value={filter} onChange={e => setFilter(e.target.value)}><option>全部模块</option><option>数列</option><option>计数</option><option>几何</option></select></label><span className="result-count">{filtered.length} 个示例条目</span></div>
     <div className="library-table"><div className="table-head"><span>来源 / 小问</span><span>标签</span><span>难度</span><span>状态</span><span /></div>{filtered.map(q => <article className="library-row" key={q.id}><div><p className="record-id">{q.id}</p><h4>{q.source} · {q.number}</h4><small>{q.title}</small></div><div>{q.tags.map(tag => <span className="tag" key={tag}>{tag}</span>)}</div><span className="difficulty-dot"><i />{q.difficulty}</span><span className="status-pill">{q.status}</span><button className="row-action" onClick={() => openTraining(q.id)}>打开 <ChevronRight size={15} /></button></article>)}</div>
-    {importJobs.length > 0 && <section className="import-ledger"><SectionTitle eyebrow="LOCAL IMPORT LEDGER" title="已归档的真实资料" /><div className="import-job-list">{importJobs.map(job => <article key={job.id}><div><FileText size={17} /><span><strong>{job.originalName}</strong><small>{job.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {new Date(job.createdAt).toLocaleString("zh-CN")}</small></span></div><span className="job-status"><CheckCircle2 size={14} /> {job.status === "needs_review" ? "待 OCR / 切分审核" : job.status}</span></article>)}</div></section>}
+    {importJobs.length > 0 && <section className="import-ledger"><SectionTitle eyebrow="LOCAL IMPORT LEDGER" title="已归档的真实资料" action={<button className="text-action" onClick={openReview}><FileSearch size={15} /> 打开审核工作台</button>} /><div className="import-job-list">{importJobs.map(job => <article key={job.id}><div><FileText size={17} /><span><strong>{job.originalName}</strong><small>{job.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {new Date(job.createdAt).toLocaleString("zh-CN")}</small></span></div><span className="job-status"><CheckCircle2 size={14} /> {job.status === "needs_review" ? "待 OCR / 切分审核" : job.status}</span></article>)}</div></section>}
     <div className="archive-footnote"><Archive size={17} /><p>示例题目仅用于展示训练界面。真实导入的资料会与原始文件、页码、切分区域、OCR 版本和标签审核记录建立回链。</p></div>
   </div>;
+}
+
+function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: MyEuclidReviewDocumentSummary[]; notify: (message: string) => void; refreshDocuments: () => Promise<void> }) {
+  const [selectedId, setSelectedId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<MyEuclidReviewDocumentDetail | null>(null);
+  const [pageId, setPageId] = useState<string | null>(null);
+  const [pageText, setPageText] = useState("");
+  const [drafts, setDrafts] = useState<MyEuclidQuestionDraft[]>([]);
+  const [loading, setLoading] = useState(false);
+
+  useEffect(() => { if (!selectedId && documents[0]) setSelectedId(documents[0].sourceDocumentId); }, [documents, selectedId]);
+  useEffect(() => {
+    if (!selectedId || !window.myEuclid) return;
+    void (async () => {
+      setLoading(true);
+      const next = await window.myEuclid!.review.getDocument(selectedId);
+      setDetail(next);
+      setPageId(next?.pages[0]?.id ?? null);
+      setPageText(next?.pages[0]?.ocrText ?? "");
+      setDrafts(next?.questions ?? []);
+      setLoading(false);
+    })();
+  }, [selectedId]);
+  const activePage = detail?.pages.find(page => page.id === pageId) ?? null;
+  const selectPage = (nextPageId: string) => { setPageId(nextPageId); setPageText(detail?.pages.find(page => page.id === nextPageId)?.ocrText ?? ""); };
+  const savePage = async () => {
+    if (!pageId || !window.myEuclid) return;
+    await window.myEuclid.review.updatePageOcr(pageId, pageText);
+    const next = await window.myEuclid.review.getDocument(selectedId!);
+    setDetail(next);
+    await refreshDocuments();
+    notify("本页 OCR 文本已保存并标记为已审核");
+  };
+  const addQuestion = () => {
+    if (!detail?.pages[0]) return;
+    setDrafts(current => [...current, { pageId: activePage?.id ?? detail.pages[0].id, label: `第 ${current.length + 1} 题`, title: "未命名题目", promptText: activePage?.ocrText ?? "", ordinal: current.length + 1, subquestions: [] }]);
+  };
+  const updateDraft = (index: number, key: keyof Omit<MyEuclidQuestionDraft, "subquestions">, value: string | number) => setDrafts(current => current.map((draft, draftIndex) => draftIndex === index ? { ...draft, [key]: value } : draft));
+  const saveDrafts = async () => {
+    if (!selectedId || !window.myEuclid) return;
+    await window.myEuclid.review.saveQuestionDrafts(selectedId, drafts);
+    const next = await window.myEuclid.review.getDocument(selectedId);
+    setDetail(next);
+    await refreshDocuments();
+    notify("题目与小问切分已确认并写入本地档案");
+  };
+
+  if (!window.myEuclid) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><FileSearch size={32} /><h3>浏览器预览不访问你的本地资料。</h3><p>请通过 `pnpm dev:desktop` 启动桌面版本，导入资料后在这里审核页面、OCR 文本、题目和小问。</p></div></div>;
+  if (!documents.length) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><Archive size={32} /><h3>还没有待审核资料。</h3><p>从“工作台”或“题库档案”导入 PDF、图片或纸质答卷后，系统会在本地建立页面记录，并把它们列在这里。</p></div></div>;
+  return <div className="view-shell review-view"><SectionTitle eyebrow="LOCAL OCR · HUMAN REVIEW" title="审核工作台" action={<span className="subtle-caption">原件、OCR 版本与确认切分均保存在本机</span>} />
+    <div className="review-layout"><aside className="review-doc-list"><p className="eyebrow">待审核资料 · {documents.length}</p>{documents.map(document => <button key={document.sourceDocumentId} className={selectedId === document.sourceDocumentId ? "is-selected" : ""} onClick={() => setSelectedId(document.sourceDocumentId)}><FileText size={16} /><span><strong>{document.originalName}</strong><small>{document.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {document.pageCount} 页</small></span><i>{document.reviewStatus === "needs_review" ? "待审" : "已审"}</i></button>)}</aside>
+      <section className="review-page-panel">{loading || !detail ? <div className="review-loading">正在读取本地审核档案…</div> : <><div className="review-panel-head"><div><p className="eyebrow">PAGE REVIEW</p><h3>{detail.originalName}</h3></div><span className="status-pill">{activePage?.ocrStatus === "failed" ? "OCR 待重试" : activePage?.ocrStatus === "pending" ? "等待 OCR" : "可人工确认"}</span></div><div className="page-tabs">{detail.pages.map(page => <button key={page.id} className={pageId === page.id ? "is-selected" : ""} onClick={() => selectPage(page.id)}>P.{page.pageNumber}<small>{page.ocrStatus === "extracted" ? "已提取" : page.ocrStatus === "failed" ? "失败" : "待处理"}</small></button>)}</div><div className="original-preview"><span className="page-watermark">{activePage ? String(activePage.pageNumber).padStart(2, "0") : "—"}</span><div><p className="eyebrow">ORIGINAL PAGE LINK</p><strong>原始页码已关联</strong><small>桌面版会保留源文件、页码和本次 OCR 版本；本轮先提供文本审核，图像标注将在后续添加。</small></div></div><label className="ocr-editor"><span><strong>OCR 文本</strong><small>可直接修订识别错误，保存后保留为人工审核版。</small></span><textarea value={pageText} onChange={event => setPageText(event.target.value)} placeholder="本地 OCR 提取的文本会显示在这里。" /></label><div className="review-actions"><span>{activePage?.reviewStatus === "confirmed" ? <><CheckCircle2 size={15} /> 已确认本页文本</> : "修改后请保存本页文本"}</span><button className="primary-button" onClick={savePage}><Save size={15} /> 保存本页 OCR</button></div></>}</section>
+      <section className="draft-panel">{detail && <><div className="review-panel-head"><div><p className="eyebrow">QUESTION BOUNDARIES</p><h3>题目与小问切分</h3></div><button className="icon-label" onClick={addQuestion}><Plus size={15} /> 新增题目</button></div><p className="draft-note">从 OCR 文本创建题目草案，再确认写入本地档案。当前版本不会自动替换你的人工编辑。</p><div className="draft-list">{drafts.map((draft, index) => <article key={`${draft.id ?? "new"}-${index}`} className="draft-card"><div className="draft-card-head"><span className="draft-index">{String(index + 1).padStart(2, "0")}</span><input value={draft.label} onChange={event => updateDraft(index, "label", event.target.value)} aria-label="题号" /><button className="remove-draft" onClick={() => setDrafts(current => current.filter((_, draftIndex) => draftIndex !== index))} aria-label="删除题目草案"><Trash2 size={15} /></button></div><input className="draft-title" value={draft.title} onChange={event => updateDraft(index, "title", event.target.value)} aria-label="题目标题" /><textarea value={draft.promptText} onChange={event => updateDraft(index, "promptText", event.target.value)} aria-label="题目文本" /><label className="draft-page-select">来源页<select value={draft.pageId} onChange={event => updateDraft(index, "pageId", event.target.value)}>{detail.pages.map(page => <option key={page.id} value={page.id}>第 {page.pageNumber} 页</option>)}</select></label></article>)}{!drafts.length && <div className="no-drafts"><Sparkles size={17} /> 先新增一题，或等待后续自动切分建议。</div>}</div><button className="primary-button wide-button" onClick={saveDrafts} disabled={!drafts.length}><Check size={15} /> 确认并写入题目档案</button></>}</section>
+    </div></div>;
 }
 
 function TrainingView({ initialId, backToLibrary, onSubmit }: { initialId: string; backToLibrary: () => void; onSubmit: () => void }) {
@@ -192,18 +251,21 @@ export default function Home() {
   const [tutorOpen, setTutorOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
+  const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
   const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
   const refreshImportJobs = async () => { if (window.myEuclid) setImportJobs(await window.myEuclid.archive.listImportJobs()); };
-  useEffect(() => { void refreshImportJobs(); }, []);
+  const refreshReviewDocuments = async () => { if (window.myEuclid) setReviewDocuments(await window.myEuclid.review.listDocuments()); };
+  useEffect(() => { void refreshImportJobs(); void refreshReviewDocuments(); }, []);
   const desktopImport = async (kind: MyEuclidImportKind) => {
     if (!window.myEuclid) return 0;
     const result = await window.myEuclid.archive.selectAndImport(kind);
-    if (!result.cancelled) await refreshImportJobs();
+    if (!result.cancelled) { await refreshImportJobs(); await refreshReviewDocuments(); }
     return result.jobs.length;
   };
   const openTraining = (id = "E-2025-07b") => { setTrainingId(id); setActive("训练会话"); };
   const renderView = () => {
-    if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} />;
+    if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} openReview={() => setActive("审核工作台")} />;
+    if (active === "审核工作台") return <ReviewWorkbench documents={reviewDocuments} notify={notify} refreshDocuments={refreshReviewDocuments} />;
     if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已保存；可在错题证据和报告中继续复盘")} />;
     if (active === "错题证据") return <EvidenceView openTutor={() => setTutorOpen(true)} openTraining={openTraining} />;
     if (active === "报告与轨迹") return <ReportsView />;

@@ -8,7 +8,7 @@
     "dev": "vite --host",
     "dev:desktop": "concurrently -k \"pnpm dev\" \"wait-on http://127.0.0.1:3000 && pnpm build:electron && VITE_DEV_SERVER_URL=http://127.0.0.1:3000 electron dist/electron/main.js\"",
     "build:renderer": "vite build",
-    "build:electron": "esbuild electron/main.ts electron/preload.ts electron/archive.ts electron/database.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/electron",
+    "build:electron": "esbuild electron/main.ts electron/preload.ts electron/archive.ts electron/database.ts electron/ocr.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/electron",
     "build": "pnpm build:renderer && pnpm build:electron",
     "package:mac": "pnpm build && electron-builder --mac dmg --arm64",
     "start": "NODE_ENV=production node dist/index.js",
@@ -57,6 +57,7 @@
     "lucide-react": "^0.453.0",
     "nanoid": "^5.1.5",
     "next-themes": "^0.4.6",
+    "pdfjs-dist": "^6.2.108",
     "react": "^19.2.1",
     "react-day-picker": "^9.11.1",
     "react-dom": "^19.2.1",
@@ -67,6 +68,7 @@
     "streamdown": "^1.4.0",
     "tailwind-merge": "^3.3.1",
     "tailwindcss-animate": "^1.0.7",
+    "tesseract.js": "^7.0.0",
     "vaul": "^1.1.2",
     "wouter": "^3.3.5",
     "zod": "^4.1.12"
@@ -105,10 +107,25 @@
   "build": {
     "appId": "com.myeuclid.client",
     "productName": "My Euclid",
-    "directories": { "output": "release" },
-    "files": ["dist/**/*", "package.json"],
+    "directories": {
+      "output": "release"
+    },
+    "files": [
+      "dist/**/*",
+      "package.json"
+    ],
     "asar": true,
-    "asarUnpack": ["node_modules/better-sqlite3/**"],
-    "mac": { "target": ["dmg"], "arch": ["arm64"], "category": "public.app-category.education" }
+    "asarUnpack": [
+      "node_modules/better-sqlite3/**"
+    ],
+    "mac": {
+      "target": [
+        "dmg"
+      ],
+      "arch": [
+        "arm64"
+      ],
+      "category": "public.app-category.education"
+    }
   }
 }

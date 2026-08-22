@@ -24,6 +24,7 @@
 | [系统架构](./docs/ARCHITECTURE.md) | Electron、React、本地数据库、AI 调用和安全边界。 |
 | [数据模型](./docs/DATA-MODEL.md) | 题源、题目、小问、作答、评分、标签与 IRT 实体关系。 |
 | [导入导出规范](./docs/IMPORT-EXPORT.md) | 本地文件、URL、纸质答卷与备份归档格式。 |
+| [OCR 与审核工作流](./docs/OCR-REVIEW.md) | 页面级文本提取、人工 OCR 修订和题目小问切分确认。 |
 | [开发说明](./docs/DEVELOPMENT.md) | 当前原型的运行方式和后续 DMG 打包路线。 |
 
 ## 运行当前版本

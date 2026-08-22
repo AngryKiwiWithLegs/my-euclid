@@ -3,7 +3,8 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archive.js";
 import { databaseHealth, getDatabase, listImportJobs } from "./database.js";
-import type { ImportKind, ImportResult } from "./types.js";
+import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
+import type { ImportKind, ImportResult, QuestionDraft } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -35,6 +36,10 @@ app.whenReady().then(async () => {
   await ensureArchiveDirectory(app);
   ipcMain.handle("archive:get-health", () => databaseHealth(app, true));
   ipcMain.handle("archive:list-import-jobs", () => listImportJobs(app));
+  ipcMain.handle("review:list-documents", () => listReviewDocuments(app));
+  ipcMain.handle("review:get-document", (_event, sourceDocumentId: string) => getReviewDocument(app, sourceDocumentId));
+  ipcMain.handle("review:update-page-ocr", (_event, pageId: string, ocrText: string) => updatePageOcr(app, pageId, ocrText));
+  ipcMain.handle("review:save-question-drafts", (_event, sourceDocumentId: string, questions: QuestionDraft[]) => saveQuestionDrafts(app, sourceDocumentId, questions));
   ipcMain.handle("archive:select-and-import", async (_event, kind: ImportKind): Promise<ImportResult> => {
     if (kind !== "source_document" && kind !== "paper_response") throw new Error("不支持的导入类型。");
     const result = await dialog.showOpenDialog({
