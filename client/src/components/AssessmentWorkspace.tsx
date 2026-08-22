@@ -2,7 +2,7 @@
  * 欧几里得档案室：可审计评分和报告视图。
  * 只展示本地真实数据；AI 未配置时明确保留为空，不用演示分数或伪造结论替代。
  */
-import { BarChart3, BookOpenCheck, CheckCircle2, ChevronRight, CircleAlert, FileCheck2, Gauge, Plus, Save, Sparkles, Target, Trash2 } from "lucide-react";
+import { BarChart3, BookOpenCheck, CheckCircle2, ChevronRight, CircleAlert, FileCheck2, Gauge, KeyRound, LockKeyhole, Plus, Save, Settings2, ShieldCheck, Sparkles, Target, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
 import "./AssessmentWorkspace.css";
 
@@ -16,6 +16,25 @@ const reOrdinal = <T extends { ordinal: number }>(items: T[]) => items.map((item
 
 function LocalOnlyNote() {
   return <div className="assessment-ai-note"><Sparkles size={17} /><div><strong>AI 判卷尚未配置</strong><p>当前可建立人工评分档案和完整证据链。AI 服务、模型和 Keychain 密钥必须由小明在后续步骤中主动配置后才可发起请求。</p></div></div>;
+}
+
+function AiProviderPanel({ notify }: { notify: (message: string) => void }) {
+  const [status, setStatus] = useState<MyEuclidAiProviderStatus | null>(null);
+  const [expanded, setExpanded] = useState(false);
+  const [saving, setSaving] = useState(false);
+  const [form, setForm] = useState({ providerLabel: "", baseUrl: "", model: "", apiKey: "" });
+  const refresh = async () => { if (window.myEuclid) setStatus(await window.myEuclid.ai.getProviderStatus()); };
+  useEffect(() => { void refresh(); }, []);
+  const save = async () => {
+    if (!window.myEuclid) return;
+    try { setSaving(true); const next = await window.myEuclid.ai.saveProviderConfig(form); setStatus(next); setForm(current => ({ ...current, apiKey: "" })); setExpanded(false); notify("AI 服务配置已保存到系统安全存储；尚未发送任何资料。"); } catch (error) { notify(error instanceof Error ? error.message : "AI 服务配置保存失败"); } finally { setSaving(false); }
+  };
+  const remove = async () => {
+    if (!window.myEuclid) return;
+    try { setSaving(true); setStatus(await window.myEuclid.ai.removeProviderConfig()); notify("AI 服务配置已从系统安全存储移除。"); } catch (error) { notify(error instanceof Error ? error.message : "AI 服务配置删除失败"); } finally { setSaving(false); }
+  };
+  if (!status) return <div className="ai-provider-panel is-loading">正在读取本地安全存储状态…</div>;
+  return <section className="ai-provider-panel"><div className="ai-provider-head"><div><p className="eyebrow">AI ASSESSMENT GATE</p><h4>{status.configured ? `${status.providerLabel} 已配置` : "配置 AI 判卷服务"}</h4></div><span className={status.secureStorageAvailable ? "is-secure" : "is-unavailable"}>{status.secureStorageAvailable ? <><ShieldCheck size={14} /> 系统安全存储</> : <><CircleAlert size={14} /> 不可用</>}</span></div><p className="ai-provider-copy">{status.message}</p>{status.configured && <div className="ai-provider-meta"><span>模型：{status.model}</span><span>地址：{status.baseUrl}</span><span>密钥：仅保存在系统安全存储</span></div>}<div className="ai-provider-actions">{status.configured ? <><button type="button" className="secondary-button" onClick={() => setExpanded(value => !value)} disabled={saving}><Settings2 size={14} /> 更新配置</button><button type="button" className="secondary-button destructive-outline" onClick={() => void remove()} disabled={saving}><Trash2 size={14} /> 移除密钥</button></> : <button type="button" className="secondary-button" onClick={() => setExpanded(value => !value)} disabled={!status.secureStorageAvailable || saving}><KeyRound size={14} /> 添加服务配置</button>}</div>{expanded && <div className="ai-provider-form"><p><LockKeyhole size={14} /> 密钥不会显示、写入 SQLite、进入备份包或返回给页面。</p><label>服务名称<input value={form.providerLabel} onChange={event => setForm(current => ({ ...current, providerLabel: event.target.value }))} placeholder="例如：个人 OpenAI 兼容服务" /></label><label>HTTPS API 基地址<input value={form.baseUrl} onChange={event => setForm(current => ({ ...current, baseUrl: event.target.value }))} placeholder="https://api.example.com/v1" /></label><label>模型标识<input value={form.model} onChange={event => setForm(current => ({ ...current, model: event.target.value }))} placeholder="由服务商提供的模型标识" /></label><label>API 密钥<input type="password" value={form.apiKey} onChange={event => setForm(current => ({ ...current, apiKey: event.target.value }))} placeholder="仅本次输入用于写入系统安全存储" autoComplete="new-password" /></label><div><button type="button" className="secondary-button" onClick={() => setExpanded(false)} disabled={saving}>取消</button><button type="button" className="primary-button" onClick={() => void save()} disabled={saving}><Save size={14} /> {saving ? "正在保存…" : "安全保存配置"}</button></div></div>}<div className="ai-request-boundary"><LockKeyhole size={14} /><span>判卷请求目前仍处于关闭状态。配置不会自动上传题目、答卷或附件；真实请求将要求逐次主动授权。</span></div></section>;
 }
 
 function EvidenceRow({ item, onChange, onRemove }: { item: MyEuclidAssessmentEvidence; onChange: (next: MyEuclidAssessmentEvidence) => void; onRemove: () => void }) {
@@ -63,7 +82,7 @@ export function EvidenceWorkspace({ sessions, records, refresh, notify }: { sess
   useEffect(() => { let cancelled = false; if (!selectedId || !window.myEuclid) { setDetail(null); return; } void window.myEuclid.assessment.getRecord(selectedId).then(record => { if (!cancelled) setDetail(record); }); return () => { cancelled = true; }; }, [selectedId]);
   const refreshAll = async () => { setSaving(true); await refresh(); setSaving(false); };
   if (!window.myEuclid) return <div className="view-shell"><SectionFallback icon={<BookOpenCheck size={32} />} title="浏览器预览不访问评分档案。" body="请通过 pnpm dev:desktop 启动桌面版本。评分、依据与报告均保留在本地 SQLite。" /></div>;
-  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
+  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><AiProviderPanel notify={notify} /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
 }
 
 export function ReportsWorkspace({ dashboard }: { dashboard: MyEuclidAssessmentDashboard | null }) {

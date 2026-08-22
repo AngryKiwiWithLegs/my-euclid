@@ -266,3 +266,21 @@ export interface AssessmentDashboard {
   mistakes: Array<{ category: MistakeCategory; count: number }>;
   aiStatus: "not_configured";
 }
+
+export interface AiProviderConfigInput {
+  providerLabel: string;
+  baseUrl: string;
+  model: string;
+  apiKey: string;
+}
+
+export interface AiProviderStatus {
+  configured: boolean;
+  secureStorageAvailable: boolean;
+  providerLabel?: string;
+  baseUrl?: string;
+  model?: string;
+  updatedAt?: string;
+  requiresPerRequestApproval: true;
+  message: string;
+}

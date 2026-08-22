@@ -28,6 +28,7 @@
 | [统一作答与本地迁移](./docs/LOCAL-MIGRATION.md) | 作答版本、答案附件、备份包、预检和恢复边界。 |
 | [笔迹作答与回放](./docs/INK-CANVAS.md) | 图层、笔画、SVG 快照、回放和本地备份恢复。 |
 | [可审计评分与报告](./docs/ASSESSMENT-REPORT.md) | 本地评分、评分依据、错因、模块拆分、报告聚合及 AI 接入边界。 |
+| [AI 服务安全配置](./docs/AI-SECURITY.md) | macOS Keychain 密钥隔离、脱敏状态、备份排除和主动授权边界。 |
 | [开发说明](./docs/DEVELOPMENT.md) | 当前原型的运行方式和后续 DMG 打包路线。 |
 
 ## 运行当前版本

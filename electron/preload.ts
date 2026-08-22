@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AiProviderConfigInput, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 
@@ -26,6 +26,11 @@ contextBridge.exposeInMainWorld("myEuclid", {
     getRecord: (assessmentId: string): Promise<AssessmentRecordDetail | null> => ipcRenderer.invoke("assessment:get-record", assessmentId),
     getDashboard: (): Promise<AssessmentDashboard> => ipcRenderer.invoke("assessment:get-dashboard"),
     saveManual: (input: SaveAssessmentInput): Promise<AssessmentRecordDetail> => ipcRenderer.invoke("assessment:save-manual", input),
+  },
+  ai: {
+    getProviderStatus: (): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:get-provider-status"),
+    saveProviderConfig: (input: AiProviderConfigInput): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:save-provider-config", input),
+    removeProviderConfig: (): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:remove-provider-config"),
   },
   practice: {
     saveResponse: (input: SavePracticeResponseInput): Promise<PracticeSessionDetail> => ipcRenderer.invoke("practice:save-response", input),

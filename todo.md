@@ -77,3 +77,13 @@
 - [x] 设计用户主动触发的 AI Provider 与 macOS Keychain 密钥接入边界；未配置服务前不生成或伪造 AI 评分。
 - [x] 推送 GitHub 私有仓库，并完成 Linux 构建与完整回归验证。
 - [ ] 在目标 Apple Silicon Mac 验证评分报告、AI 服务配置流程与 DMG 打包。
+
+# 下一迭代：AI 判卷安全配置层
+
+- [x] 审查 Electron `safeStorage` 在 macOS Keychain 与非 macOS 开发环境中的安全行为。
+- [x] 定义 OpenAI 兼容服务配置、密钥隔离、判卷授权和配置状态的最小模型。
+- [x] 实现加密密钥存储、服务配置保存、状态读取与删除的受限 IPC。
+- [x] 确保密钥不会出现在 SQLite、日志、renderer、导出包或恢复包中。
+- [x] 在错题证据中接入 AI 服务配置与每次判卷的主动授权入口；无配置时保持不可调用。
+- [x] 编写安全存储和备份排除测试，并更新开发文档。
+- [ ] 在目标 Apple Silicon Mac 验证 Keychain、服务配置、实际授权判卷与 arm64 DMG。
