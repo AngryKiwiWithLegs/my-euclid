@@ -4,6 +4,7 @@
  */
 import { CheckCircle2, CircleAlert, KeyRound, ListChecks, LockKeyhole, Pencil, Plus, Power, ShieldCheck, Sparkles, Star, Trash2, Wifi } from "lucide-react";
 import { useEffect, useState } from "react";
+import { AiProvidersBrowserDemo } from "./AiProvidersBrowserDemo";
 import "./AiProvidersWorkspace.css";
 
 type ProviderDraft = { id?: string; providerLabel: string; baseUrl: string; model: string; apiKey: string; enabled: boolean; };
@@ -21,7 +22,7 @@ export function AiProvidersWorkspace({ notify }: { notify: (message: string) => 
   const [testResults, setTestResults] = useState<Record<string, MyEuclidAiConnectionResult>>({});
   const refresh = async () => { if (window.myEuclid) setRegistry(await window.myEuclid.ai.getProviderRegistry()); };
   useEffect(() => { void refresh(); }, []);
-  if (!window.myEuclid) return <DesktopOnly />;
+  if (!window.myEuclid) return <AiProvidersBrowserDemo notify={notify} />;
   const mutate = async (work: () => Promise<MyEuclidAiProviderRegistry>, success: string) => {
     try { setSaving(true); setRegistry(await work()); notify(success); } catch (error) { notify(error instanceof Error ? error.message : "AI 服务设置未保存。"); } finally { setSaving(false); }
   };
