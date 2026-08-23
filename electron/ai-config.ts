@@ -109,3 +109,12 @@ export async function removeAiProvider(app: App, storage: SecureStringStorage, p
   if (!vault.providers.length) await rm(getAiConfigStoragePath(app), { force: true }); else await writeVault(app, storage, vault);
   return toRegistry(vault, true);
 }
+
+export async function getAiProviderForUse(app: App, storage: SecureStringStorage, providerId?: string, platform?: NodeJS.Platform) {
+  if (!keychainAvailable(storage, platform)) throw new Error("macOS Keychain 当前不可用，不能读取 AI 服务密钥。");
+  const vault = await readVault(app, storage, platform);
+  const selectedId = providerId ?? selectDefault(vault);
+  const provider = selectedId ? vault.providers.find(item => item.id === selectedId) : undefined;
+  if (!provider || !provider.enabled) throw new Error("请先在 AI 服务中选择一个已启用的默认提供商。");
+  return provider;
+}

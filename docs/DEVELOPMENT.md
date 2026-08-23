@@ -16,6 +16,8 @@
 
 “AI 服务”独立页面仅在目标 macOS 上、Electron Keychain 可用时启用。小明可自行维护多个 OpenAI 兼容 HTTPS 服务、模型和默认提供商；密钥始终加密保存在应用私有 `secure/` 目录，预加载桥只返回脱敏状态，且配置不在 SQLite 或 `.myeuclid-backup.zip` 内。当前仍不执行真实网络判卷：保存、启用或切换默认服务不会自动上传资料，真实请求需要在后续迭代中增加逐次授权和结构化响应审核。安全边界验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-config-security.mjs`。
 
+AI 服务页现可主动测试连接并发现提供商返回的模型标识。错题证据页可为指定题面与答卷版本生成十分钟有效的发送预览；只有点击“确认发送并生成评分草案”后才会发起一次 `chat/completions` 请求。题面文本、答卷文本和满分会在发送前可见，当前不会上传纸质附件、扫描图像或笔迹二进制数据。成功结果经本地结构化校验后写入 `origin=ai`、`status=draft` 的评分档案，仍需人工确认才计入报告。网络调用与结构化草案验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-runtime.mjs`。
+
 ## 本地运行
 
 ```bash

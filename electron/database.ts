@@ -239,6 +239,28 @@ function migrate(db: Database.Database) {
     `);
     db.pragma("user_version = 6");
   }
+  if (currentVersion < 7) {
+    db.exec(`
+      CREATE TABLE IF NOT EXISTS ai_run_audits (
+        id TEXT PRIMARY KEY,
+        provider_id TEXT NOT NULL,
+        session_id TEXT NOT NULL REFERENCES practice_sessions(id) ON DELETE CASCADE,
+        response_id TEXT NOT NULL REFERENCES practice_responses(id) ON DELETE CASCADE,
+        assessment_id TEXT REFERENCES assessment_records(id) ON DELETE SET NULL,
+        action TEXT NOT NULL CHECK (action IN ('connection_test', 'model_discovery', 'assessment')),
+        status TEXT NOT NULL CHECK (status IN ('authorized', 'running', 'succeeded', 'failed', 'expired')),
+        authorized_at TEXT NOT NULL,
+        started_at TEXT,
+        completed_at TEXT,
+        request_summary TEXT NOT NULL DEFAULT '',
+        response_excerpt TEXT NOT NULL DEFAULT '',
+        error_message TEXT NOT NULL DEFAULT ''
+      );
+      CREATE INDEX IF NOT EXISTS idx_ai_run_audits_session ON ai_run_audits(session_id, authorized_at DESC);
+      CREATE INDEX IF NOT EXISTS idx_ai_run_audits_provider ON ai_run_audits(provider_id, authorized_at DESC);
+    `);
+    db.pragma("user_version = 7");
+  }
 }
 
 export function listImportJobs(app: App): ImportJobSummary[] {
@@ -419,7 +441,7 @@ export function getAssessmentRecord(app: App, assessmentId: string): AssessmentR
   return { ...summary, confirmedAt: summary.confirmedAt ?? undefined, evidence, mistakes, modules };
 }
 
-export function saveAssessmentRecord(app: App, input: SaveAssessmentInput): AssessmentRecordDetail {
+function saveAssessmentRecordWithOrigin(app: App, input: SaveAssessmentInput, origin: "manual" | "ai"): AssessmentRecordDetail {
   const db = getDatabase(app);
   const now = new Date().toISOString();
   const response = db.prepare("SELECT id FROM practice_responses WHERE id = ? AND session_id = ?").get(input.responseId, input.sessionId);
@@ -428,7 +450,7 @@ export function saveAssessmentRecord(app: App, input: SaveAssessmentInput): Asse
   const transaction = db.transaction(() => {
     const version = (db.prepare("SELECT COALESCE(MAX(version), 0) AS value FROM assessment_records WHERE session_id = ?").get(input.sessionId) as { value: number }).value + 1;
     db.prepare(`INSERT INTO assessment_records (id, session_id, response_id, origin, status, version, score_awarded, score_maximum, overall_feedback, summary, created_at, confirmed_at)
-      VALUES (?, ?, ?, 'manual', ?, ?, ?, ?, ?, ?, ?, ?)`).run(assessmentId, input.sessionId, input.responseId, input.status, version, input.scoreAwarded, input.scoreMaximum, input.overallFeedback.slice(0, 12_000), input.summary.slice(0, 4_000), now, input.status === "confirmed" ? now : null);
+      VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`).run(assessmentId, input.sessionId, input.responseId, origin, input.status, version, input.scoreAwarded, input.scoreMaximum, input.overallFeedback.slice(0, 12_000), input.summary.slice(0, 4_000), now, input.status === "confirmed" ? now : null);
     const evidence = db.prepare(`INSERT INTO assessment_evidence (id, assessment_id, criterion, maximum_points, awarded_points, rationale, response_quote, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`);
     const mistakes = db.prepare(`INSERT INTO assessment_mistakes (id, assessment_id, category, module, severity, note, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?)`);
     const modules = db.prepare(`INSERT INTO assessment_modules (id, assessment_id, module, awarded_points, maximum_points, note, ordinal) VALUES (?, ?, ?, ?, ?, ?, ?)`);
@@ -438,6 +460,20 @@ export function saveAssessmentRecord(app: App, input: SaveAssessmentInput): Asse
   });
   transaction();
   return getAssessmentRecord(app, assessmentId)!;
+}
+
+export function saveAssessmentRecord(app: App, input: SaveAssessmentInput): AssessmentRecordDetail { return saveAssessmentRecordWithOrigin(app, input, "manual"); }
+export function saveAiAssessmentDraft(app: App, input: SaveAssessmentInput): AssessmentRecordDetail { return saveAssessmentRecordWithOrigin(app, { ...input, status: "draft" }, "ai"); }
+
+export function createAiRunAudit(app: App, input: { id: string; providerId: string; sessionId: string; responseId: string; action: "connection_test" | "model_discovery" | "assessment"; status: "authorized" | "running" | "succeeded" | "failed" | "expired"; requestSummary: string }) {
+  getDatabase(app).prepare(`INSERT INTO ai_run_audits (id, provider_id, session_id, response_id, action, status, authorized_at, request_summary) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`)
+    .run(input.id, input.providerId, input.sessionId, input.responseId, input.action, input.status, new Date().toISOString(), input.requestSummary.slice(0, 12_000));
+}
+
+export function updateAiRunAudit(app: App, auditId: string, input: { status: "running" | "succeeded" | "failed" | "expired"; assessmentId?: string; responseExcerpt?: string; errorMessage?: string }) {
+  const now = new Date().toISOString();
+  getDatabase(app).prepare(`UPDATE ai_run_audits SET status = ?, started_at = CASE WHEN ? = 'running' THEN ? ELSE started_at END, completed_at = CASE WHEN ? IN ('succeeded', 'failed', 'expired') THEN ? ELSE completed_at END, assessment_id = COALESCE(?, assessment_id), response_excerpt = CASE WHEN ? IS NULL THEN response_excerpt ELSE ? END, error_message = CASE WHEN ? IS NULL THEN error_message ELSE ? END WHERE id = ?`)
+    .run(input.status, input.status, now, input.status, now, input.assessmentId ?? null, input.responseExcerpt ?? null, (input.responseExcerpt ?? "").slice(0, 12_000), input.errorMessage ?? null, (input.errorMessage ?? "").slice(0, 2_000), auditId);
 }
 
 export function getAssessmentDashboard(app: App): AssessmentDashboard {

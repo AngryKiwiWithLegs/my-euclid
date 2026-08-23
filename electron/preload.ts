@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 const toDefaultStatus = (registry: AiProviderRegistry): AiProviderStatus => {
@@ -36,6 +36,10 @@ contextBridge.exposeInMainWorld("myEuclid", {
     saveProvider: (input: AiProviderConfigInput): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:save-provider", input),
     setDefaultProvider: (providerId: string): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:set-default-provider", providerId),
     removeProvider: (providerId: string): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:remove-provider", providerId),
+    testProvider: (providerId: string): Promise<AiConnectionResult> => ipcRenderer.invoke("ai:test-provider", providerId),
+    listModels: (providerId: string): Promise<AiConnectionResult> => ipcRenderer.invoke("ai:list-models", providerId),
+    prepareAssessment: (input: AiAssessmentPrepareInput): Promise<AiAssessmentPreview> => ipcRenderer.invoke("ai:prepare-assessment", input),
+    runAssessment: (authorizationToken: string): Promise<AiAssessmentRunResult> => ipcRenderer.invoke("ai:run-assessment", authorizationToken),
     getProviderStatus: async (): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:get-provider-registry")),
     saveProviderConfig: async (input: Omit<AiProviderConfigInput, "enabled">): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:save-provider", { ...input, enabled: true })),
     removeProviderConfig: async (): Promise<AiProviderStatus> => {

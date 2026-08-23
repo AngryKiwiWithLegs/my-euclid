@@ -7,8 +7,9 @@ import { databaseHealth, getAssessmentDashboard, getAssessmentRecord, getDatabas
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { getAiProviderRegistry, removeAiProvider, saveAiProvider, setDefaultAiProvider } from "./ai-config.js";
+import { listAiProviderModels, prepareAiAssessment, runAuthorizedAiAssessment, testAiProvider } from "./ai-runtime.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { AiProviderConfigInput, ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AiAssessmentPrepareInput, AiProviderConfigInput, ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -48,6 +49,13 @@ function requireAiConfig(input: unknown): AiProviderConfigInput {
   if (!input || typeof input !== "object") throw new Error("AI 服务配置无效。");
   const value = input as AiProviderConfigInput;
   if (![value.providerLabel, value.baseUrl, value.model].every(field => typeof field === "string") || (value.apiKey !== undefined && typeof value.apiKey !== "string") || typeof value.enabled !== "boolean") throw new Error("AI 服务配置字段无效。");
+  return value;
+}
+
+function requireAiAssessmentPrepare(input: unknown): AiAssessmentPrepareInput {
+  if (!input || typeof input !== "object") throw new Error("AI 判卷授权参数无效。");
+  const value = input as AiAssessmentPrepareInput;
+  if (!uuidPattern.test(value.sessionId) || !uuidPattern.test(value.responseId) || typeof value.questionText !== "string" || !Number.isFinite(value.scoreMaximum)) throw new Error("AI 判卷授权字段无效。");
   return value;
 }
 
@@ -95,6 +103,13 @@ app.whenReady().then(async () => {
   ipcMain.handle("ai:save-provider", (_event, input: AiProviderConfigInput) => saveAiProvider(app, safeStorage, requireAiConfig(input)));
   ipcMain.handle("ai:set-default-provider", (_event, providerId: string) => setDefaultAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
   ipcMain.handle("ai:remove-provider", (_event, providerId: string) => removeAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
+  ipcMain.handle("ai:test-provider", (_event, providerId: string) => testAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
+  ipcMain.handle("ai:list-models", (_event, providerId: string) => listAiProviderModels(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
+  ipcMain.handle("ai:prepare-assessment", (_event, input: AiAssessmentPrepareInput) => prepareAiAssessment(app, safeStorage, requireAiAssessmentPrepare(input)));
+  ipcMain.handle("ai:run-assessment", (_event, authorizationToken: string) => {
+    if (typeof authorizationToken !== "string" || !uuidPattern.test(authorizationToken)) throw new Error("AI 判卷授权标识无效。");
+    return runAuthorizedAiAssessment(app, safeStorage, authorizationToken);
+  });
   ipcMain.handle("practice:save-response", (_event, input: SavePracticeResponseInput) => {
     if (!input || !["keyboard", "handwritten"].includes(input.answerFormat) || !["draft", "submitted"].includes(input.status)) throw new Error("作答格式或保存状态无效。");
     if (input.content.length > 500_000) throw new Error("单次作答文本超过保存限制。");

@@ -38,6 +38,9 @@ declare global {
   interface MyEuclidAiProviderStatus { configured: boolean; secureStorageAvailable: boolean; providerLabel?: string; baseUrl?: string; model?: string; updatedAt?: string; requiresPerRequestApproval: true; message: string; }
   interface MyEuclidAiProviderSummary { id: string; providerLabel: string; baseUrl: string; model: string; enabled: boolean; isDefault: boolean; createdAt: string; updatedAt: string; }
   interface MyEuclidAiProviderRegistry { secureStorageAvailable: boolean; providers: MyEuclidAiProviderSummary[]; defaultProviderId?: string; requiresPerRequestApproval: true; message: string; }
+  interface MyEuclidAiConnectionResult { providerId: string; ok: boolean; latencyMs: number; models: string[]; message: string; }
+  interface MyEuclidAiAssessmentPreview { authorizationToken: string; expiresAt: string; providerId: string; providerLabel: string; model: string; sessionTitle: string; referenceKey: string; answerFormat: "keyboard" | "handwritten" | "paper_attachment"; questionText: string; answerText: string; scoreMaximum: number; attachments: MyEuclidResponseAttachment[]; disclosure: string[]; }
+  interface MyEuclidAiAssessmentRunResult { auditId: string; assessment: MyEuclidAssessmentDetail; providerLabel: string; model: string; responseExcerpt: string; }
   interface Window {
     myEuclid?: {
       archive: {
@@ -65,6 +68,10 @@ declare global {
         saveProvider: (input: { id?: string; providerLabel: string; baseUrl: string; model: string; apiKey?: string; enabled: boolean }) => Promise<MyEuclidAiProviderRegistry>;
         setDefaultProvider: (providerId: string) => Promise<MyEuclidAiProviderRegistry>;
         removeProvider: (providerId: string) => Promise<MyEuclidAiProviderRegistry>;
+        testProvider: (providerId: string) => Promise<MyEuclidAiConnectionResult>;
+        listModels: (providerId: string) => Promise<MyEuclidAiConnectionResult>;
+        prepareAssessment: (input: { sessionId: string; responseId: string; questionText: string; scoreMaximum: number }) => Promise<MyEuclidAiAssessmentPreview>;
+        runAssessment: (authorizationToken: string) => Promise<MyEuclidAiAssessmentRunResult>;
         getProviderStatus: () => Promise<MyEuclidAiProviderStatus>;
         saveProviderConfig: (input: { providerLabel: string; baseUrl: string; model: string; apiKey: string }) => Promise<MyEuclidAiProviderStatus>;
         removeProviderConfig: () => Promise<MyEuclidAiProviderStatus>;

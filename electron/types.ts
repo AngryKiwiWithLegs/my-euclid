@@ -305,3 +305,42 @@ export interface AiProviderStatus {
   requiresPerRequestApproval: true;
   message: string;
 }
+
+export interface AiConnectionResult {
+  providerId: string;
+  ok: boolean;
+  latencyMs: number;
+  models: string[];
+  message: string;
+}
+
+export interface AiAssessmentPrepareInput {
+  sessionId: string;
+  responseId: string;
+  questionText: string;
+  scoreMaximum: number;
+}
+
+export interface AiAssessmentPreview {
+  authorizationToken: string;
+  expiresAt: string;
+  providerId: string;
+  providerLabel: string;
+  model: string;
+  sessionTitle: string;
+  referenceKey: string;
+  answerFormat: AnswerFormat;
+  questionText: string;
+  answerText: string;
+  scoreMaximum: number;
+  attachments: ResponseAttachmentSummary[];
+  disclosure: string[];
+}
+
+export interface AiAssessmentRunResult {
+  auditId: string;
+  assessment: AssessmentRecordDetail;
+  providerLabel: string;
+  model: string;
+  responseExcerpt: string;
+}

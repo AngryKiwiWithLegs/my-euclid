@@ -4,6 +4,7 @@
  */
 import { BarChart3, BookOpenCheck, CheckCircle2, ChevronRight, CircleAlert, FileCheck2, Gauge, KeyRound, LockKeyhole, Plus, Save, Settings2, ShieldCheck, Sparkles, Target, Trash2 } from "lucide-react";
 import { useEffect, useMemo, useState } from "react";
+import { AiAssessmentWizard } from "./AiAssessmentWizard";
 import "./AssessmentWorkspace.css";
 
 const categoryNames: Record<MyEuclidMistakeCategory, string> = { conceptual: "概念", method: "方法", reasoning: "推理", completeness: "完整性", calculation: "计算", communication: "表达", time: "用时", other: "其他" };
@@ -90,7 +91,7 @@ export function EvidenceWorkspace({ sessions, records, refresh, notify, openAiSe
   useEffect(() => { let cancelled = false; if (!selectedId || !window.myEuclid) { setDetail(null); return; } void window.myEuclid.assessment.getRecord(selectedId).then(record => { if (!cancelled) setDetail(record); }); return () => { cancelled = true; }; }, [selectedId]);
   const refreshAll = async () => { setSaving(true); await refresh(); setSaving(false); };
   if (!window.myEuclid) return <div className="view-shell"><SectionFallback icon={<BookOpenCheck size={32} />} title="浏览器预览不访问评分档案。" body="请通过 pnpm dev:desktop 启动桌面版本。评分、依据与报告均保留在本地 SQLite。" /></div>;
-  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><AiReadiness openSettings={openAiSettings} /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
+  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><AiReadiness openSettings={openAiSettings} /><AiAssessmentWizard sessions={sessions} onCreated={refreshAll} notify={notify} /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
 }
 
 export function ReportsWorkspace({ dashboard }: { dashboard: MyEuclidAssessmentDashboard | null }) {
