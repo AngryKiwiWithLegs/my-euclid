@@ -1,7 +1,11 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AiProviderConfigInput, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
+const toDefaultStatus = (registry: AiProviderRegistry): AiProviderStatus => {
+  const provider = registry.providers.find(item => item.isDefault);
+  return { configured: Boolean(provider), secureStorageAvailable: registry.secureStorageAvailable, providerLabel: provider?.providerLabel, baseUrl: provider?.baseUrl, model: provider?.model, updatedAt: provider?.updatedAt, requiresPerRequestApproval: true, message: registry.message };
+};
 
 contextBridge.exposeInMainWorld("myEuclid", {
   archive: {
@@ -28,9 +32,17 @@ contextBridge.exposeInMainWorld("myEuclid", {
     saveManual: (input: SaveAssessmentInput): Promise<AssessmentRecordDetail> => ipcRenderer.invoke("assessment:save-manual", input),
   },
   ai: {
-    getProviderStatus: (): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:get-provider-status"),
-    saveProviderConfig: (input: AiProviderConfigInput): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:save-provider-config", input),
-    removeProviderConfig: (): Promise<AiProviderStatus> => ipcRenderer.invoke("ai:remove-provider-config"),
+    getProviderRegistry: (): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:get-provider-registry"),
+    saveProvider: (input: AiProviderConfigInput): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:save-provider", input),
+    setDefaultProvider: (providerId: string): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:set-default-provider", providerId),
+    removeProvider: (providerId: string): Promise<AiProviderRegistry> => ipcRenderer.invoke("ai:remove-provider", providerId),
+    getProviderStatus: async (): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:get-provider-registry")),
+    saveProviderConfig: async (input: Omit<AiProviderConfigInput, "enabled">): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:save-provider", { ...input, enabled: true })),
+    removeProviderConfig: async (): Promise<AiProviderStatus> => {
+      const registry = await ipcRenderer.invoke("ai:get-provider-registry") as AiProviderRegistry;
+      const provider = registry.providers.find(item => item.isDefault);
+      return toDefaultStatus(provider ? await ipcRenderer.invoke("ai:remove-provider", provider.id) : registry);
+    },
   },
   practice: {
     saveResponse: (input: SavePracticeResponseInput): Promise<PracticeSessionDetail> => ipcRenderer.invoke("practice:save-response", input),

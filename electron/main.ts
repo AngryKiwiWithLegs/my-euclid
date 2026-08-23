@@ -6,7 +6,7 @@ import { exportBackup, preflightBackup, restoreBackup } from "./backup.js";
 import { databaseHealth, getAssessmentDashboard, getAssessmentRecord, getDatabase, getInkResponse, listAssessmentRecords, listAssessmentSessions, listImportJobs, saveAssessmentRecord, saveInkResponse } from "./database.js";
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
-import { getAiProviderStatus, removeAiProviderConfig, saveAiProviderConfig } from "./ai-config.js";
+import { getAiProviderRegistry, removeAiProvider, saveAiProvider, setDefaultAiProvider } from "./ai-config.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
 import type { AiProviderConfigInput, ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
 
@@ -47,7 +47,7 @@ function requireAssessment(input: unknown): SaveAssessmentInput {
 function requireAiConfig(input: unknown): AiProviderConfigInput {
   if (!input || typeof input !== "object") throw new Error("AI 服务配置无效。");
   const value = input as AiProviderConfigInput;
-  if (![value.providerLabel, value.baseUrl, value.model, value.apiKey].every(field => typeof field === "string")) throw new Error("AI 服务配置字段无效。");
+  if (![value.providerLabel, value.baseUrl, value.model].every(field => typeof field === "string") || (value.apiKey !== undefined && typeof value.apiKey !== "string") || typeof value.enabled !== "boolean") throw new Error("AI 服务配置字段无效。");
   return value;
 }
 
@@ -91,9 +91,10 @@ app.whenReady().then(async () => {
   ipcMain.handle("assessment:get-record", (_event, assessmentId: string) => getAssessmentRecord(app, requireLocalId(assessmentId, "评分档案标识")));
   ipcMain.handle("assessment:get-dashboard", () => getAssessmentDashboard(app));
   ipcMain.handle("assessment:save-manual", (_event, input: SaveAssessmentInput) => saveAssessmentRecord(app, requireAssessment(input)));
-  ipcMain.handle("ai:get-provider-status", () => getAiProviderStatus(app, safeStorage));
-  ipcMain.handle("ai:save-provider-config", (_event, input: AiProviderConfigInput) => saveAiProviderConfig(app, safeStorage, requireAiConfig(input)));
-  ipcMain.handle("ai:remove-provider-config", () => removeAiProviderConfig(app, safeStorage));
+  ipcMain.handle("ai:get-provider-registry", () => getAiProviderRegistry(app, safeStorage));
+  ipcMain.handle("ai:save-provider", (_event, input: AiProviderConfigInput) => saveAiProvider(app, safeStorage, requireAiConfig(input)));
+  ipcMain.handle("ai:set-default-provider", (_event, providerId: string) => setDefaultAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
+  ipcMain.handle("ai:remove-provider", (_event, providerId: string) => removeAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
   ipcMain.handle("practice:save-response", (_event, input: SavePracticeResponseInput) => {
     if (!input || !["keyboard", "handwritten"].includes(input.answerFormat) || !["draft", "submitted"].includes(input.status)) throw new Error("作答格式或保存状态无效。");
     if (input.content.length > 500_000) throw new Error("单次作答文本超过保存限制。");

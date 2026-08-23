@@ -14,7 +14,7 @@
 
 错题证据与报告页现由本地评分档案驱动。评分档案包含答卷版本回链、总分、逐条评分依据、错因和模块拆分；只有确认评分才会进入累计得分率、最近得分率、模块表现、错因分布和评分轨迹。AI 判卷尚未接入：当前没有用户配置的服务或密钥，故不会生成任何伪造 AI 结论。评分与备份恢复验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-assessment-report.mjs`。
 
-错题证据页现提供 AI 服务配置入口。它仅在目标 macOS 上、Electron Keychain 可用时启用，使用 `safeStorage` 加密保存用户手动输入的 HTTPS 服务地址、模型和密钥；预加载桥只返回脱敏状态。配置位于应用私有 `secure/` 目录，不在 SQLite 或 `.myeuclid-backup.zip` 内。当前仍不执行真实网络判卷：服务配置不会自动上传资料，真实请求需要在后续迭代中增加逐次授权和结构化响应审核。安全边界验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-config-security.mjs`。
+“AI 服务”独立页面仅在目标 macOS 上、Electron Keychain 可用时启用。小明可自行维护多个 OpenAI 兼容 HTTPS 服务、模型和默认提供商；密钥始终加密保存在应用私有 `secure/` 目录，预加载桥只返回脱敏状态，且配置不在 SQLite 或 `.myeuclid-backup.zip` 内。当前仍不执行真实网络判卷：保存、启用或切换默认服务不会自动上传资料，真实请求需要在后续迭代中增加逐次授权和结构化响应审核。安全边界验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-config-security.mjs`。
 
 ## 本地运行
 

@@ -6,6 +6,7 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { InkCanvas } from "@/components/InkCanvas";
 import { OcrRegionSelector } from "@/components/OcrRegionSelector";
 import { EvidenceWorkspace, ReportsWorkspace } from "@/components/AssessmentWorkspace";
+import { AiProvidersWorkspace } from "@/components/AiProvidersWorkspace";
 import {
   Archive,
   ArrowLeft,
@@ -41,6 +42,7 @@ import {
   Search,
   Save,
   Send,
+  Settings2,
   Sparkles,
   Target,
   TimerReset,
@@ -51,7 +53,7 @@ import {
   X,
 } from "lucide-react";
 
-type View = "工作台" | "题库档案" | "审核工作台" | "训练会话" | "错题证据" | "报告与轨迹";
+type View = "工作台" | "题库档案" | "审核工作台" | "训练会话" | "错题证据" | "报告与轨迹" | "AI 服务";
 type ImportKind = "source" | "paper" | "answer" | null;
 
 const navItems: { label: View; icon: typeof Archive }[] = [
@@ -61,6 +63,7 @@ const navItems: { label: View; icon: typeof Archive }[] = [
   { label: "训练会话", icon: Target },
   { label: "错题证据", icon: BookOpenCheck },
   { label: "报告与轨迹", icon: BrainCircuit },
+  { label: "AI 服务", icon: Settings2 },
 ];
 
 const questions = [
@@ -345,6 +348,7 @@ export default function Home() {
     if (view === "training") return "训练会话";
     if (view === "evidence") return "错题证据";
     if (view === "reports") return "报告与轨迹";
+    if (view === "ai") return "AI 服务";
     if (view === "review") return "审核工作台";
     if (view === "library") return "题库档案";
     return "工作台";
@@ -375,8 +379,9 @@ export default function Home() {
     if (active === "题库档案") return <LibraryView openImport={setImportKind} openTraining={openTraining} importJobs={importJobs} openReview={() => setActive("审核工作台")} />;
     if (active === "审核工作台") return <ReviewWorkbench documents={reviewDocuments} notify={notify} refreshDocuments={refreshReviewDocuments} />;
     if (active === "训练会话") return <TrainingView initialId={trainingId} backToLibrary={() => setActive("题库档案")} onSubmit={() => notify("作答已提交；后续可在错题证据和报告中继续复盘")} notify={notify} />;
-    if (active === "错题证据") return <EvidenceWorkspace sessions={assessmentSessions} records={assessmentRecords} refresh={refreshAssessments} notify={notify} />;
+    if (active === "错题证据") return <EvidenceWorkspace sessions={assessmentSessions} records={assessmentRecords} refresh={refreshAssessments} notify={notify} openAiSettings={() => setActive("AI 服务")} />;
     if (active === "报告与轨迹") return <ReportsWorkspace dashboard={assessmentDashboard} />;
+    if (active === "AI 服务") return <AiProvidersWorkspace notify={notify} />;
     return <Dashboard openImport={setImportKind} openTraining={openTraining} importedCount={importJobs.length} />;
   };
   return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => setBackupOpen(true)}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{backupOpen && <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;

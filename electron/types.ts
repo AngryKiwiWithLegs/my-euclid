@@ -268,10 +268,31 @@ export interface AssessmentDashboard {
 }
 
 export interface AiProviderConfigInput {
+  id?: string;
   providerLabel: string;
   baseUrl: string;
   model: string;
-  apiKey: string;
+  apiKey?: string;
+  enabled: boolean;
+}
+
+export interface AiProviderSummary {
+  id: string;
+  providerLabel: string;
+  baseUrl: string;
+  model: string;
+  enabled: boolean;
+  isDefault: boolean;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface AiProviderRegistry {
+  secureStorageAvailable: boolean;
+  providers: AiProviderSummary[];
+  defaultProviderId?: string;
+  requiresPerRequestApproval: true;
+  message: string;
 }
 
 export interface AiProviderStatus {

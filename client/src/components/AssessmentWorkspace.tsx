@@ -15,7 +15,15 @@ const initialForm = (): FormState => ({ sessionId: "", responseId: "", scoreAwar
 const reOrdinal = <T extends { ordinal: number }>(items: T[]) => items.map((item, index) => ({ ...item, ordinal: index + 1 }));
 
 function LocalOnlyNote() {
-  return <div className="assessment-ai-note"><Sparkles size={17} /><div><strong>AI 判卷尚未配置</strong><p>当前可建立人工评分档案和完整证据链。AI 服务、模型和 Keychain 密钥必须由小明在后续步骤中主动配置后才可发起请求。</p></div></div>;
+  return <div className="assessment-ai-note"><Sparkles size={17} /><div><strong>评分保留为可审计的本地档案</strong><p>可在“AI 服务”页面自行添加提供商、模型和密钥。即使已配置服务，每次真实判卷仍须由小明主动确认。</p></div></div>;
+}
+
+function AiReadiness({ openSettings }: { openSettings: () => void }) {
+  const [registry, setRegistry] = useState<MyEuclidAiProviderRegistry | null>(null);
+  useEffect(() => { if (window.myEuclid) void window.myEuclid.ai.getProviderRegistry().then(setRegistry); }, []);
+  if (!window.myEuclid) return null;
+  const provider = registry?.providers.find(item => item.isDefault);
+  return <div className="ai-readiness"><Sparkles size={16} /><div><strong>{provider ? `默认 AI 服务：${provider.providerLabel}` : "未选择默认 AI 服务"}</strong><p>{provider ? `${provider.model} · 每次判卷仍需你确认发送内容。` : registry?.secureStorageAvailable ? "请先在 AI 服务中新增提供商并设置默认项。" : "macOS Keychain 当前不可用，无法保存服务密钥。"}</p></div><button className="text-action" onClick={openSettings}>管理 AI 服务</button></div>;
 }
 
 function AiProviderPanel({ notify }: { notify: (message: string) => void }) {
@@ -74,7 +82,7 @@ function AssessmentDetail({ record }: { record: MyEuclidAssessmentDetail | null 
   return <section className="assessment-detail"><div className="assessment-detail-title"><div><p className="eyebrow">ASSESSMENT EVIDENCE</p><h3>{record.title}</h3><small>答卷 V{record.responseVersion} · {new Date(record.createdAt).toLocaleString("zh-CN")}</small></div><strong>{record.scoreAwarded} / {record.scoreMaximum}</strong></div><p className="assessment-summary">{record.summary || "未填写结论摘要。"}</p>{record.overallFeedback && <p className="assessment-feedback">{record.overallFeedback}</p>}<div className="assessment-detail-section"><h4>评分依据</h4>{record.evidence.length ? record.evidence.map(item => <article key={item.id}><div><strong>{item.criterion || "未命名得分点"}</strong><span>{item.awardedPoints} / {item.maximumPoints}</span></div><p>{item.rationale || "未填写评分说明。"}</p>{item.responseQuote && <blockquote>{item.responseQuote}</blockquote>}</article>) : <p className="assessment-empty-inline">本草稿尚未录入评分依据。</p>}</div><div className="assessment-detail-section"><h4>错因</h4>{record.mistakes.length ? record.mistakes.map(item => <article className="mistake-evidence" key={item.id}><span>{categoryNames[item.category]} · {severityNames[item.severity]}</span><strong>{item.module || "未归属模块"}</strong><p>{item.note || "未填写错因说明。"}</p></article>) : <p className="assessment-empty-inline">未记录错因。</p>}</div><div className="assessment-detail-section"><h4>模块拆分</h4>{record.modules.length ? record.modules.map(item => <article className="module-evidence" key={item.id}><div><strong>{item.module}</strong><span>{item.awardedPoints} / {item.maximumPoints}</span></div>{item.note && <p>{item.note}</p>}</article>) : <p className="assessment-empty-inline">未记录模块拆分。</p>}</div></section>;
 }
 
-export function EvidenceWorkspace({ sessions, records, refresh, notify }: { sessions: MyEuclidPracticeSession[]; records: MyEuclidAssessmentRecord[]; refresh: () => Promise<void>; notify: (message: string) => void }) {
+export function EvidenceWorkspace({ sessions, records, refresh, notify, openAiSettings }: { sessions: MyEuclidPracticeSession[]; records: MyEuclidAssessmentRecord[]; refresh: () => Promise<void>; notify: (message: string) => void; openAiSettings: () => void }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MyEuclidAssessmentDetail | null>(null);
   const [saving, setSaving] = useState(false);
@@ -82,7 +90,7 @@ export function EvidenceWorkspace({ sessions, records, refresh, notify }: { sess
   useEffect(() => { let cancelled = false; if (!selectedId || !window.myEuclid) { setDetail(null); return; } void window.myEuclid.assessment.getRecord(selectedId).then(record => { if (!cancelled) setDetail(record); }); return () => { cancelled = true; }; }, [selectedId]);
   const refreshAll = async () => { setSaving(true); await refresh(); setSaving(false); };
   if (!window.myEuclid) return <div className="view-shell"><SectionFallback icon={<BookOpenCheck size={32} />} title="浏览器预览不访问评分档案。" body="请通过 pnpm dev:desktop 启动桌面版本。评分、依据与报告均保留在本地 SQLite。" /></div>;
-  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><AiProviderPanel notify={notify} /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
+  return <div className="view-shell assessment-view"><SectionTitleLocal eyebrow="MISCONCEPTION LEDGER" title="错题证据" note="每条评分都要能回看答卷版本与得分依据" /><LocalOnlyNote /><AiReadiness openSettings={openAiSettings} /><div className="assessment-layout"><aside className="assessment-record-list"><div className="assessment-list-head"><span>本地评分档案</span><b>{records.length}</b></div>{records.length ? records.map(record => <button key={record.id} className={selectedId === record.id ? "is-selected" : ""} onClick={() => setSelectedId(record.id)}><span><strong>{record.title}</strong><small>{record.scoreAwarded} / {record.scoreMaximum} · {record.status === "confirmed" ? "已确认" : "草稿"}</small></span><ChevronRight size={15} /></button>) : <p className="assessment-list-empty">尚未有真实评分档案。</p>}</aside><AssessmentDetail record={detail} /><AssessmentEditor sessions={sessions} busy={saving} onSaved={refreshAll} notify={notify} /></div></div>;
 }
 
 export function ReportsWorkspace({ dashboard }: { dashboard: MyEuclidAssessmentDashboard | null }) {
