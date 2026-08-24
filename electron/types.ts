@@ -90,6 +90,108 @@ export interface ReviewDocumentDetail extends ReviewDocumentSummary {
   questions: QuestionDraft[];
 }
 
+export type QuestionBankStatus = "published" | "archived";
+export type QuestionTagSource = "manual" | "ai_suggestion";
+
+export interface QuestionTag { id: string; category: string; value: string; source: QuestionTagSource; }
+
+export interface QuestionBankSubquestion {
+  id: string;
+  sourceSubquestionDraftId?: string;
+  ordinal: number;
+  label: string;
+  promptText: string;
+  maximumPoints?: number;
+}
+
+export interface QuestionBankQuestion {
+  id: string;
+  sourceQuestionDraftId: string;
+  sourceDocumentId: string;
+  pageId: string;
+  originalName: string;
+  pageNumber: number;
+  label: string;
+  title: string;
+  promptText: string;
+  status: QuestionBankStatus;
+  sourceName: string;
+  competitionYear?: number;
+  questionNumber?: number;
+  primaryTopic: string;
+  secondaryTopics: string[];
+  difficulty?: number;
+  questionType: string;
+  methods: string[];
+  proofRequired: boolean;
+  estimatedMinutes?: number;
+  maximumPoints?: number;
+  scoringNotes: string;
+  priority: number;
+  tags: QuestionTag[];
+  subquestions: QuestionBankSubquestion[];
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface QuestionBankMetadataInput {
+  sourceName: string;
+  competitionYear?: number;
+  questionNumber?: number;
+  primaryTopic: string;
+  secondaryTopics: string[];
+  difficulty?: number;
+  questionType: string;
+  methods: string[];
+  proofRequired: boolean;
+  estimatedMinutes?: number;
+  maximumPoints?: number;
+  scoringNotes: string;
+  priority: number;
+  tags: Array<{ category: string; value: string; source?: QuestionTagSource }>;
+  subquestions: Array<Omit<QuestionBankSubquestion, "id" | "sourceSubquestionDraftId"> & { sourceSubquestionDraftId?: string }>;
+}
+
+export interface PublishQuestionDraftInput { questionDraftId: string; metadata: QuestionBankMetadataInput; }
+
+export interface QuestionBankFilter { query?: string; sourceName?: string; competitionYear?: number; primaryTopic?: string; difficulty?: number; questionType?: string; proofRequired?: boolean; limit?: number; }
+
+export type MockExamStatus = "draft" | "active" | "submitted" | "archived";
+export interface MockExamItem {
+  id: string;
+  ordinal: number;
+  questionId: string;
+  maximumPoints?: number;
+  title: string;
+  label: string;
+  promptText: string;
+  primaryTopic: string;
+  difficulty?: number;
+  sessionId: string;
+  responseCount: number;
+  submittedResponseCount: number;
+}
+export interface MockExamSummary { id: string; title: string; status: MockExamStatus; durationSeconds: number; questionCount: number; startedAt?: string; submittedAt?: string; createdAt: string; updatedAt: string; }
+export interface MockExamDetail extends MockExamSummary { items: MockExamItem[]; }
+export interface CreateMockExamInput { title: string; questionIds: string[]; durationSeconds?: number; }
+
+export interface KnowledgeNode { id: string; name: string; description: string; createdAt: string; updatedAt: string; }
+export interface KnowledgeEdge { id: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number; }
+export interface IrtItemParameter { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; updatedAt: string; }
+export interface QuestionKnowledgeMapping { questionId: string; nodeId: string; weight: number; }
+export interface AbilitySnapshot { nodeId: string; theta: number; standardError: number; evidenceCount: number; updatedAt: string; }
+export interface AdaptiveRecommendation { question: QuestionBankQuestion; reason: "upstream" | "weakness" | "stretch" | "review"; predictedProbability: number; targetNodeId: string; targetNodeName: string; }
+export interface AdaptiveTrainingProfile { nodes: KnowledgeNode[]; edges: KnowledgeEdge[]; mappings: QuestionKnowledgeMapping[]; parameters: IrtItemParameter[]; abilities: AbilitySnapshot[]; recommendations: AdaptiveRecommendation[]; notice: string; }
+export interface SaveKnowledgeNodeInput { id?: string; name: string; description: string; }
+export interface SaveKnowledgeEdgeInput { id?: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number; }
+export interface SaveIrtItemParameterInput { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; nodeIds: string[]; }
+
+export interface TutorMethod { name: string; outline: string; keyIdea: string; pitfalls: string; }
+export interface TutorPlan { prerequisiteKnowledge: string[]; entryPoint: string; thoughtSource: string; methods: TutorMethod[]; similarType: string; variants: string[]; socraticQuestion: string; }
+export interface TutorSession { id: string; questionId: string; providerId: string; status: "active" | "archived"; questionText: string; answerText: string; plan?: TutorPlan; createdAt: string; updatedAt: string; messages: Array<{ id: string; role: "user" | "assistant"; content: string; createdAt: string; }>; }
+export interface TutorPrepareInput { questionId: string; responseId?: string; }
+export interface TutorPreview { authorizationToken: string; expiresAt: string; providerLabel: string; model: string; questionId: string; questionText: string; answerText: string; disclosure: string[]; }
+
 export type AnswerFormat = "keyboard" | "handwritten" | "paper_attachment";
 export type PracticeSessionStatus = "active" | "submitted" | "archived";
 

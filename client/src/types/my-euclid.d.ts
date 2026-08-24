@@ -15,6 +15,20 @@ declare global {
   interface MyEuclidQuestionDraft { id?: string; pageId: string; label: string; title: string; promptText: string; ordinal: number; subquestions: MyEuclidSubquestionDraft[]; }
   interface MyEuclidReviewDocumentSummary { sourceDocumentId: string; originalName: string; kind: MyEuclidImportKind; importedAt: string; pageCount: number; reviewStatus: MyEuclidReviewStatus; }
   interface MyEuclidReviewDocumentDetail extends MyEuclidReviewDocumentSummary { pages: MyEuclidReviewPage[]; questions: MyEuclidQuestionDraft[]; }
+  type MyEuclidQuestionBankStatus = "published" | "archived";
+  interface MyEuclidQuestionTag { id: string; category: string; value: string; source: "manual" | "ai_suggestion"; }
+  interface MyEuclidQuestionBankSubquestion { id: string; sourceSubquestionDraftId?: string; ordinal: number; label: string; promptText: string; maximumPoints?: number; }
+  interface MyEuclidQuestionBankQuestion { id: string; sourceQuestionDraftId: string; sourceDocumentId: string; pageId: string; originalName: string; pageNumber: number; label: string; title: string; promptText: string; status: MyEuclidQuestionBankStatus; sourceName: string; competitionYear?: number; questionNumber?: number; primaryTopic: string; secondaryTopics: string[]; difficulty?: number; questionType: string; methods: string[]; proofRequired: boolean; estimatedMinutes?: number; maximumPoints?: number; scoringNotes: string; priority: number; tags: MyEuclidQuestionTag[]; subquestions: MyEuclidQuestionBankSubquestion[]; createdAt: string; updatedAt: string; }
+  interface MyEuclidQuestionPublishInput { questionDraftId: string; metadata: { sourceName: string; competitionYear?: number; questionNumber?: number; primaryTopic: string; secondaryTopics: string[]; difficulty?: number; questionType: string; methods: string[]; proofRequired: boolean; estimatedMinutes?: number; maximumPoints?: number; scoringNotes: string; priority: number; tags: Array<{ category: string; value: string; source?: "manual" | "ai_suggestion" }>; subquestions: Array<{ sourceSubquestionDraftId?: string; ordinal: number; label: string; promptText: string; maximumPoints?: number; }>; }; }
+  type MyEuclidMockExamStatus = "draft" | "active" | "submitted" | "archived";
+  interface MyEuclidMockExamItem { id: string; ordinal: number; questionId: string; maximumPoints?: number; title: string; label: string; promptText: string; primaryTopic: string; difficulty?: number; sessionId: string; responseCount: number; submittedResponseCount: number; }
+  interface MyEuclidMockExam { id: string; title: string; status: MyEuclidMockExamStatus; durationSeconds: number; questionCount: number; startedAt?: string; submittedAt?: string; createdAt: string; updatedAt: string; items: MyEuclidMockExamItem[]; }
+  interface MyEuclidKnowledgeNode { id: string; name: string; description: string; createdAt: string; updatedAt: string; }
+  interface MyEuclidKnowledgeEdge { id: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number; }
+  interface MyEuclidIrtItemParameter { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; updatedAt: string; }
+  interface MyEuclidAbilitySnapshot { nodeId: string; theta: number; standardError: number; evidenceCount: number; updatedAt: string; }
+  interface MyEuclidAdaptiveRecommendation { question: MyEuclidQuestionBankQuestion; reason: "upstream" | "weakness" | "stretch" | "review"; predictedProbability: number; targetNodeId: string; targetNodeName: string; }
+  interface MyEuclidAdaptiveProfile { nodes: MyEuclidKnowledgeNode[]; edges: MyEuclidKnowledgeEdge[]; mappings: Array<{ questionId: string; nodeId: string; weight: number }>; parameters: MyEuclidIrtItemParameter[]; abilities: MyEuclidAbilitySnapshot[]; recommendations: MyEuclidAdaptiveRecommendation[]; notice: string; }
   type MyEuclidAnswerFormat = "keyboard" | "handwritten" | "paper_attachment";
   interface MyEuclidResponseAttachment { id: string; responseId: string; originalName: string; mimeType: string; sizeBytes: number; createdAt: string; }
   interface MyEuclidPracticeResponse { id: string; sessionId: string; answerFormat: MyEuclidAnswerFormat; content: string; status: "draft" | "submitted"; version: number; createdAt: string; attachments: MyEuclidResponseAttachment[]; }
@@ -55,6 +69,24 @@ declare global {
         recognizeRegion: (input: { pageId: string; rect: MyEuclidNormalizedRect }) => Promise<MyEuclidOcrRegion>;
         updatePageOcr: (pageId: string, ocrText: string) => Promise<void>;
         saveQuestionDrafts: (sourceDocumentId: string, questions: MyEuclidQuestionDraft[]) => Promise<void>;
+        publishQuestionDrafts: (sourceDocumentId: string, inputs: MyEuclidQuestionPublishInput[]) => Promise<MyEuclidQuestionBankQuestion[]>;
+      };
+      library: {
+        listQuestions: (filter?: { query?: string; sourceName?: string; competitionYear?: number; primaryTopic?: string; difficulty?: number; questionType?: string; proofRequired?: boolean; limit?: number; }) => Promise<MyEuclidQuestionBankQuestion[]>;
+        getQuestion: (questionId: string) => Promise<MyEuclidQuestionBankQuestion | null>;
+      };
+      mockExam: {
+        list: () => Promise<MyEuclidMockExam[]>;
+        get: (examId: string) => Promise<MyEuclidMockExam | null>;
+        create: (input: { title: string; questionIds: string[]; durationSeconds?: number }) => Promise<MyEuclidMockExam>;
+        start: (examId: string) => Promise<MyEuclidMockExam>;
+        submit: (examId: string) => Promise<MyEuclidMockExam>;
+      };
+      adaptive: {
+        getProfile: () => Promise<MyEuclidAdaptiveProfile>;
+        saveNode: (input: { id?: string; name: string; description: string }) => Promise<MyEuclidKnowledgeNode>;
+        saveEdge: (input: { id?: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number }) => Promise<MyEuclidKnowledgeEdge>;
+        saveItemParameter: (input: { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; nodeIds: string[] }) => Promise<MyEuclidIrtItemParameter>;
       };
       assessment: {
         listSessions: () => Promise<MyEuclidPracticeSession[]>;

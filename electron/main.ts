@@ -3,13 +3,13 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archive.js";
 import { exportBackup, preflightBackup, restoreBackup } from "./backup.js";
-import { databaseHealth, getAssessmentDashboard, getAssessmentRecord, getDatabase, getInkResponse, listAssessmentRecords, listAssessmentSessions, listImportJobs, saveAssessmentRecord, saveInkResponse } from "./database.js";
+import { createMockExam, databaseHealth, getAdaptiveTrainingProfile, getAssessmentDashboard, getAssessmentRecord, getDatabase, getInkResponse, getMockExam, getQuestionBankQuestion, listAssessmentRecords, listAssessmentSessions, listImportJobs, listMockExams, listQuestionBank, publishQuestionDrafts, saveAssessmentRecord, saveInkResponse, saveKnowledgeEdge, saveKnowledgeNode, saveQuestionIrtParameter, startMockExam, submitMockExam } from "./database.js";
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { getAiProviderRegistry, removeAiProvider, saveAiProvider, setDefaultAiProvider } from "./ai-config.js";
 import { listAiProviderModels, prepareAiAssessment, runAuthorizedAiAssessment, testAiProvider } from "./ai-runtime.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { AiAssessmentPrepareInput, AiProviderConfigInput, ImportKind, ImportResult, NormalizedRect, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInput, ImportKind, ImportResult, NormalizedRect, PublishQuestionDraftInput, QuestionBankFilter, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -59,6 +59,46 @@ function requireAiAssessmentPrepare(input: unknown): AiAssessmentPrepareInput {
   return value;
 }
 
+function requireQuestionBankFilter(input: unknown): QuestionBankFilter {
+  if (!input || typeof input !== "object") return {};
+  const value = input as QuestionBankFilter;
+  if (value.query !== undefined && (typeof value.query !== "string" || value.query.length > 200)) throw new Error("题库搜索条件无效。");
+  if (value.competitionYear !== undefined && (!Number.isInteger(value.competitionYear) || value.competitionYear < 1900 || value.competitionYear > 2100)) throw new Error("竞赛年份无效。");
+  if (value.difficulty !== undefined && (!Number.isFinite(value.difficulty) || value.difficulty < 1 || value.difficulty > 5)) throw new Error("难度筛选无效。");
+  if (value.limit !== undefined && (!Number.isInteger(value.limit) || value.limit < 1 || value.limit > 500)) throw new Error("题库数量限制无效。");
+  return value;
+}
+
+function requirePublishQuestionInputs(input: unknown): PublishQuestionDraftInput[] {
+  if (!Array.isArray(input) || !input.length || input.length > 100) throw new Error("至少选择一道已确认题目发布，且一次不超过 100 题。");
+  input.forEach(item => {
+    if (!item || typeof item !== "object" || !uuidPattern.test((item as PublishQuestionDraftInput).questionDraftId)) throw new Error("题目发布标识无效。");
+    const metadata = (item as PublishQuestionDraftInput).metadata;
+    if (!metadata || typeof metadata.sourceName !== "string" || typeof metadata.primaryTopic !== "string" || typeof metadata.questionType !== "string" || !Array.isArray(metadata.secondaryTopics) || !Array.isArray(metadata.methods) || !Array.isArray(metadata.tags) || !Array.isArray(metadata.subquestions)) throw new Error("题目发布元数据无效。");
+  });
+  return input as PublishQuestionDraftInput[];
+}
+
+function requireCreateMockExam(input: unknown): CreateMockExamInput {
+  if (!input || typeof input !== "object") throw new Error("模考创建参数无效。");
+  const value = input as CreateMockExamInput;
+  if (typeof value.title !== "string" || !Array.isArray(value.questionIds) || value.questionIds.some(id => !uuidPattern.test(id)) || (value.durationSeconds !== undefined && (!Number.isInteger(value.durationSeconds) || value.durationSeconds < 60 || value.durationSeconds > 21600))) throw new Error("模考试卷字段无效。");
+  return value;
+}
+
+function requireKnowledgeNode(input: unknown): SaveKnowledgeNodeInput {
+  if (!input || typeof input !== "object") throw new Error("知识节点参数无效。"); const value = input as SaveKnowledgeNodeInput;
+  if (typeof value.name !== "string" || typeof value.description !== "string" || (value.id !== undefined && !uuidPattern.test(value.id))) throw new Error("知识节点字段无效。"); return value;
+}
+function requireKnowledgeEdge(input: unknown): SaveKnowledgeEdgeInput {
+  if (!input || typeof input !== "object") throw new Error("知识依赖参数无效。"); const value = input as SaveKnowledgeEdgeInput;
+  if (!uuidPattern.test(value.prerequisiteNodeId) || !uuidPattern.test(value.dependentNodeId) || (value.id !== undefined && !uuidPattern.test(value.id)) || !Number.isFinite(value.strength)) throw new Error("知识依赖字段无效。"); return value;
+}
+function requireIrtParameter(input: unknown): SaveIrtItemParameterInput {
+  if (!input || typeof input !== "object") throw new Error("IRT 参数无效。"); const value = input as SaveIrtItemParameterInput;
+  if (!uuidPattern.test(value.questionId) || !Array.isArray(value.nodeIds) || value.nodeIds.some(id => !uuidPattern.test(id)) || !["manual", "heuristic"].includes(value.source) || !Number.isFinite(value.difficulty) || !Number.isFinite(value.discrimination) || !Number.isFinite(value.guessing)) throw new Error("IRT 参数字段无效。"); return value;
+}
+
 function createWindow() {
   const window = new BrowserWindow({
     width: 1440,
@@ -94,6 +134,18 @@ app.whenReady().then(async () => {
     return updatePageOcr(app, requireLocalId(pageId, "页面标识"), ocrText);
   });
   ipcMain.handle("review:save-question-drafts", (_event, sourceDocumentId: string, questions: QuestionDraft[]) => saveQuestionDrafts(app, sourceDocumentId, questions));
+  ipcMain.handle("review:publish-question-drafts", (_event, sourceDocumentId: string, inputs: PublishQuestionDraftInput[]) => publishQuestionDrafts(app, requireLocalId(sourceDocumentId, "资料标识"), requirePublishQuestionInputs(inputs)));
+  ipcMain.handle("library:list-questions", (_event, filter: QuestionBankFilter) => listQuestionBank(app, requireQuestionBankFilter(filter)));
+  ipcMain.handle("library:get-question", (_event, questionId: string) => getQuestionBankQuestion(app, requireLocalId(questionId, "题库题目标识")));
+  ipcMain.handle("mock-exam:list", () => listMockExams(app));
+  ipcMain.handle("mock-exam:get", (_event, examId: string) => getMockExam(app, requireLocalId(examId, "模考标识")));
+  ipcMain.handle("mock-exam:create", (_event, input: CreateMockExamInput) => createMockExam(app, requireCreateMockExam(input)));
+  ipcMain.handle("mock-exam:start", (_event, examId: string) => startMockExam(app, requireLocalId(examId, "模考标识")));
+  ipcMain.handle("mock-exam:submit", (_event, examId: string) => submitMockExam(app, requireLocalId(examId, "模考标识")));
+  ipcMain.handle("adaptive:get-profile", () => getAdaptiveTrainingProfile(app));
+  ipcMain.handle("adaptive:save-node", (_event, input: SaveKnowledgeNodeInput) => saveKnowledgeNode(app, requireKnowledgeNode(input)));
+  ipcMain.handle("adaptive:save-edge", (_event, input: SaveKnowledgeEdgeInput) => saveKnowledgeEdge(app, requireKnowledgeEdge(input)));
+  ipcMain.handle("adaptive:save-item-parameter", (_event, input: SaveIrtItemParameterInput) => saveQuestionIrtParameter(app, requireIrtParameter(input)));
   ipcMain.handle("assessment:list-sessions", () => listAssessmentSessions(app));
   ipcMain.handle("assessment:list-records", () => listAssessmentRecords(app));
   ipcMain.handle("assessment:get-record", (_event, assessmentId: string) => getAssessmentRecord(app, requireLocalId(assessmentId, "评分档案标识")));

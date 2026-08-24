@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, NormalizedRect, OcrRegion, PracticeSessionDetail, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput } from "./types.js";
+import type { AdaptiveTrainingProfile, AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, CreateMockExamInput, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, MockExamDetail, NormalizedRect, OcrRegion, PracticeSessionDetail, PublishQuestionDraftInput, QuestionBankFilter, QuestionBankQuestion, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 const toDefaultStatus = (registry: AiProviderRegistry): AiProviderStatus => {
@@ -23,6 +23,24 @@ contextBridge.exposeInMainWorld("myEuclid", {
     recognizeRegion: (input: { pageId: string; rect: NormalizedRect }): Promise<OcrRegion> => ipcRenderer.invoke("review:recognize-region", input),
     updatePageOcr: (pageId: string, ocrText: string): Promise<void> => ipcRenderer.invoke("review:update-page-ocr", pageId, ocrText),
     saveQuestionDrafts: (sourceDocumentId: string, questions: QuestionDraft[]): Promise<void> => ipcRenderer.invoke("review:save-question-drafts", sourceDocumentId, questions),
+    publishQuestionDrafts: (sourceDocumentId: string, inputs: PublishQuestionDraftInput[]): Promise<QuestionBankQuestion[]> => ipcRenderer.invoke("review:publish-question-drafts", sourceDocumentId, inputs),
+  },
+  library: {
+    listQuestions: (filter: QuestionBankFilter = {}): Promise<QuestionBankQuestion[]> => ipcRenderer.invoke("library:list-questions", filter),
+    getQuestion: (questionId: string): Promise<QuestionBankQuestion | null> => ipcRenderer.invoke("library:get-question", questionId),
+  },
+  mockExam: {
+    list: (): Promise<MockExamDetail[]> => ipcRenderer.invoke("mock-exam:list"),
+    get: (examId: string): Promise<MockExamDetail | null> => ipcRenderer.invoke("mock-exam:get", examId),
+    create: (input: CreateMockExamInput): Promise<MockExamDetail> => ipcRenderer.invoke("mock-exam:create", input),
+    start: (examId: string): Promise<MockExamDetail> => ipcRenderer.invoke("mock-exam:start", examId),
+    submit: (examId: string): Promise<MockExamDetail> => ipcRenderer.invoke("mock-exam:submit", examId),
+  },
+  adaptive: {
+    getProfile: (): Promise<AdaptiveTrainingProfile> => ipcRenderer.invoke("adaptive:get-profile"),
+    saveNode: (input: SaveKnowledgeNodeInput) => ipcRenderer.invoke("adaptive:save-node", input),
+    saveEdge: (input: SaveKnowledgeEdgeInput) => ipcRenderer.invoke("adaptive:save-edge", input),
+    saveItemParameter: (input: SaveIrtItemParameterInput) => ipcRenderer.invoke("adaptive:save-item-parameter", input),
   },
   assessment: {
     listSessions: (): Promise<PracticeSessionDetail[]> => ipcRenderer.invoke("assessment:list-sessions"),
