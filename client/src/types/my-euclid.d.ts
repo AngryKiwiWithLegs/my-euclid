@@ -55,6 +55,8 @@ declare global {
   interface MyEuclidAiConnectionResult { providerId: string; ok: boolean; latencyMs: number; models: string[]; message: string; }
   interface MyEuclidAiAssessmentPreview { authorizationToken: string; expiresAt: string; providerId: string; providerLabel: string; model: string; sessionTitle: string; referenceKey: string; answerFormat: "keyboard" | "handwritten" | "paper_attachment"; questionText: string; answerText: string; scoreMaximum: number; attachments: MyEuclidResponseAttachment[]; disclosure: string[]; }
   interface MyEuclidAiAssessmentRunResult { auditId: string; assessment: MyEuclidAssessmentDetail; providerLabel: string; model: string; responseExcerpt: string; }
+  interface MyEuclidTutorPlan { prerequisiteKnowledge: string[]; entryPoint: string; thoughtSource: string; methods: Array<{ name: string; outline: string; keyIdea: string; pitfalls: string }>; similarType: string; variants: string[]; socraticQuestion: string; }
+  interface MyEuclidTutorSession { id: string; questionId: string; providerId: string; status: "active" | "archived"; questionText: string; answerText: string; plan?: MyEuclidTutorPlan; createdAt: string; updatedAt: string; messages: Array<{ id: string; role: "user" | "assistant"; content: string; createdAt: string; }>; }
   interface Window {
     myEuclid?: {
       archive: {
@@ -104,6 +106,9 @@ declare global {
         listModels: (providerId: string) => Promise<MyEuclidAiConnectionResult>;
         prepareAssessment: (input: { sessionId: string; responseId: string; questionText: string; scoreMaximum: number }) => Promise<MyEuclidAiAssessmentPreview>;
         runAssessment: (authorizationToken: string) => Promise<MyEuclidAiAssessmentRunResult>;
+        prepareTutor: (input: { questionId: string }) => Promise<{ authorizationToken: string; expiresAt: string; providerLabel: string; model: string; questionId: string; questionText: string; answerText: string; disclosure: string[] }>;
+        runTutor: (authorizationToken: string) => Promise<MyEuclidTutorSession>;
+        askTutor: (input: { sessionId: string; message: string }) => Promise<MyEuclidTutorSession>;
         getProviderStatus: () => Promise<MyEuclidAiProviderStatus>;
         saveProviderConfig: (input: { providerLabel: string; baseUrl: string; model: string; apiKey: string }) => Promise<MyEuclidAiProviderStatus>;
         removeProviderConfig: () => Promise<MyEuclidAiProviderStatus>;

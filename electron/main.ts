@@ -7,9 +7,9 @@ import { createMockExam, databaseHealth, getAdaptiveTrainingProfile, getAssessme
 import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageOcr } from "./database.js";
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { getAiProviderRegistry, removeAiProvider, saveAiProvider, setDefaultAiProvider } from "./ai-config.js";
-import { listAiProviderModels, prepareAiAssessment, runAuthorizedAiAssessment, testAiProvider } from "./ai-runtime.js";
+import { askTutorQuestion, listAiProviderModels, prepareAiAssessment, prepareTutorSession, runAuthorizedAiAssessment, runAuthorizedTutorSession, testAiProvider } from "./ai-runtime.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInput, ImportKind, ImportResult, NormalizedRect, PublishQuestionDraftInput, QuestionBankFilter, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput } from "./types.js";
+import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInput, ImportKind, ImportResult, NormalizedRect, PublishQuestionDraftInput, QuestionBankFilter, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput, TutorPrepareInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -161,6 +161,18 @@ app.whenReady().then(async () => {
   ipcMain.handle("ai:run-assessment", (_event, authorizationToken: string) => {
     if (typeof authorizationToken !== "string" || !uuidPattern.test(authorizationToken)) throw new Error("AI 判卷授权标识无效。");
     return runAuthorizedAiAssessment(app, safeStorage, authorizationToken);
+  });
+  ipcMain.handle("ai:prepare-tutor", (_event, input: TutorPrepareInput) => {
+    if (!input || typeof input.questionId !== "string" || !uuidPattern.test(input.questionId)) throw new Error("互动讲解题目标识无效。");
+    return prepareTutorSession(app, safeStorage, { questionId: input.questionId });
+  });
+  ipcMain.handle("ai:run-tutor", (_event, authorizationToken: string) => {
+    if (typeof authorizationToken !== "string" || !uuidPattern.test(authorizationToken)) throw new Error("互动讲解授权标识无效。");
+    return runAuthorizedTutorSession(app, safeStorage, authorizationToken);
+  });
+  ipcMain.handle("ai:ask-tutor", (_event, input: { sessionId: string; message: string }) => {
+    if (!input || typeof input.message !== "string" || input.message.length > 20_000) throw new Error("互动讲解追问无效。");
+    return askTutorQuestion(app, safeStorage, requireLocalId(input.sessionId, "互动讲解会话标识"), input.message);
   });
   ipcMain.handle("practice:save-response", (_event, input: SavePracticeResponseInput) => {
     if (!input || !["keyboard", "handwritten"].includes(input.answerFormat) || !["draft", "submitted"].includes(input.status)) throw new Error("作答格式或保存状态无效。");

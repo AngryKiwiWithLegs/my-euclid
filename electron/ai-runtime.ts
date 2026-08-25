@@ -1,11 +1,13 @@
 import { randomUUID } from "node:crypto";
 import type { App } from "electron";
 import { getAiProviderForUse, type SecureStringStorage } from "./ai-config.js";
-import { createAiRunAudit, getPracticeSession, saveAiAssessmentDraft, updateAiRunAudit } from "./database.js";
-import type { AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AssessmentMistakeInput, AssessmentModuleInput, AssessmentEvidenceInput, SaveAssessmentInput } from "./types.js";
+import { appendTutorMessage, createAiRunAudit, createTutorSession, getPracticeSession, getQuestionBankQuestion, getTutorSession, saveAiAssessmentDraft, saveTutorPlan, updateAiRunAudit } from "./database.js";
+import type { AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AssessmentMistakeInput, AssessmentModuleInput, AssessmentEvidenceInput, SaveAssessmentInput, TutorPlan, TutorPrepareInput, TutorPreview, TutorSession } from "./types.js";
 
 type AuthorizedAssessment = AiAssessmentPreview & { responseId: string; sessionId: string; providerId: string; };
 const authorizations = new Map<string, AuthorizedAssessment>();
+type AuthorizedTutor = TutorPreview & { providerId: string; };
+const tutorAuthorizations = new Map<string, AuthorizedTutor>();
 const validCategories = new Set(["conceptual", "method", "reasoning", "completeness", "calculation", "communication", "time", "other"]);
 const validSeverities = new Set(["minor", "moderate", "major"]);
 
@@ -89,4 +91,55 @@ export async function runAuthorizedAiAssessment(app: App, storage: SecureStringS
     updateAiRunAudit(app, auditId, { status: "succeeded", assessmentId: assessment.id, responseExcerpt: excerpt });
     return { auditId, assessment, providerLabel: provider.providerLabel, model: provider.model, responseExcerpt: excerpt };
   } catch (error) { const message = safeFailure(error); updateAiRunAudit(app, auditId, { status: "failed", errorMessage: message }); throw new Error(message); } finally { clearTimeout(timer); }
+}
+
+function normalizeTutorPlan(content: string): TutorPlan {
+  const data = parseJson(content);
+  const methods = Array.isArray(data.methods) ? data.methods.slice(0, 5).map(item => {
+    const row = item as Record<string, unknown>;
+    return { name: normalizeString(row.name, 120), outline: normalizeString(row.outline, 4_000), keyIdea: normalizeString(row.key_idea, 2_000), pitfalls: normalizeString(row.pitfalls, 2_000) };
+  }).filter(item => item.name && item.outline) : [];
+  if (methods.length < 3) throw new Error("AI 讲解 JSON 至少需要三种完整方法。");
+  const prerequisiteKnowledge = Array.isArray(data.prerequisite_knowledge) ? data.prerequisite_knowledge.map(item => normalizeString(item, 500)).filter(Boolean).slice(0, 12) : [];
+  const variants = Array.isArray(data.variants) ? data.variants.map(item => normalizeString(item, 1_000)).filter(Boolean).slice(0, 8) : [];
+  const plan = { prerequisiteKnowledge, entryPoint: normalizeString(data.entry_point, 4_000), thoughtSource: normalizeString(data.thought_source, 4_000), methods, similarType: normalizeString(data.similar_type, 2_000), variants, socraticQuestion: normalizeString(data.socratic_question, 2_000) };
+  if (!plan.entryPoint || !plan.socraticQuestion) throw new Error("AI 讲解 JSON 缺少切入点或苏格拉底追问。");
+  return plan;
+}
+
+function buildTutorPrompt(preview: AuthorizedTutor) {
+  const schema = `{"prerequisite_knowledge":[string],"entry_point":string,"thought_source":string,"methods":[{"name":string,"outline":string,"key_idea":string,"pitfalls":string}],"similar_type":string,"variants":[string],"socratic_question":string}`;
+  return `你是欧几里得数学竞赛的苏格拉底导师。基于题面制定可互动的讲解计划，不要编造题面未给出的条件。必须给出至少三种彼此有实质区别的方法；分别说明必备知识、从哪里入手、思路来源、关键技巧、常见误区、同类旧题类型及至少两个变式追问。输出严格 JSON，不要 Markdown。结构：${schema}\n\n题面：\n${preview.questionText}`;
+}
+
+export async function prepareTutorSession(app: App, storage: SecureStringStorage, input: TutorPrepareInput, platform?: NodeJS.Platform): Promise<TutorPreview> {
+  const question = getQuestionBankQuestion(app, input.questionId);
+  if (!question) throw new Error("互动讲解题目不存在或尚未发布。");
+  const provider = await getAiProviderForUse(app, storage, undefined, platform);
+  const preview: TutorPreview = { authorizationToken: randomUUID(), expiresAt: new Date(Date.now() + 10 * 60_000).toISOString(), providerLabel: provider.providerLabel, model: provider.model, questionId: question.id, questionText: question.promptText, answerText: "", disclosure: ["将发送已发布题目的题面文本与所选模型。", "当前互动讲解不会上传原件、扫描图片、纸质附件或笔迹二进制数据。", "确认后才会生成三方法讲解计划并保存为本地互动会话。"] };
+  tutorAuthorizations.set(preview.authorizationToken, { ...preview, providerId: provider.id });
+  return preview;
+}
+
+export async function runAuthorizedTutorSession(app: App, storage: SecureStringStorage, authorizationToken: string, platform?: NodeJS.Platform): Promise<TutorSession> {
+  const preview = tutorAuthorizations.get(authorizationToken);
+  if (!preview) throw new Error("本次互动讲解授权不存在或已被使用，请重新确认发送范围。");
+  tutorAuthorizations.delete(authorizationToken);
+  if (Date.parse(preview.expiresAt) < Date.now()) throw new Error("本次互动讲解授权已过期，请重新确认。");
+  const provider = await getAiProviderForUse(app, storage, preview.providerId, platform); const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 60_000);
+  try {
+    const response = await fetch(apiUrl(provider.baseUrl, "/chat/completions"), { method: "POST", headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json", Accept: "application/json" }, body: JSON.stringify({ model: provider.model, temperature: .25, messages: [{ role: "system", content: "You are a rigorous mathematical contest tutor. Return valid JSON only." }, { role: "user", content: buildTutorPrompt(preview) }], response_format: { type: "json_object" } }), signal: controller.signal });
+    if (!response.ok) throw new Error(`服务返回 HTTP ${response.status}。`);
+    const json = await response.json() as { choices?: Array<{ message?: { content?: unknown } }> }; const content = typeof json.choices?.[0]?.message?.content === "string" ? json.choices[0].message.content : "";
+    if (!content) throw new Error("AI 服务未返回可用的互动讲解内容。");
+    const plan = normalizeTutorPlan(content);
+    const session = createTutorSession(app, { questionId: preview.questionId, providerId: provider.id, questionText: preview.questionText, answerText: preview.answerText });
+    return saveTutorPlan(app, session.id, plan);
+  } catch (error) { throw new Error(safeFailure(error)); } finally { clearTimeout(timer); }
+}
+
+export async function askTutorQuestion(app: App, storage: SecureStringStorage, sessionId: string, message: string, platform?: NodeJS.Platform): Promise<TutorSession> {
+  const session = getTutorSession(app, sessionId); if (!session || session.status !== "active") throw new Error("互动讲解会话不存在或已归档。");
+  const updated = appendTutorMessage(app, sessionId, "user", message); const provider = await getAiProviderForUse(app, storage, session.providerId, platform); const controller = new AbortController(); const timer = setTimeout(() => controller.abort(), 60_000);
+  try { const response = await fetch(apiUrl(provider.baseUrl, "/chat/completions"), { method: "POST", headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json" }, body: JSON.stringify({ model: provider.model, temperature: .3, messages: [{ role: "system", content: "You are a Socratic Euclid contest tutor. Give a concise hint, do not reveal a full solution unless the learner explicitly asks after trying." }, { role: "user", content: `题面：\n${session.questionText}\n\n三方法计划：\n${JSON.stringify(session.plan ?? {})}\n\n学生追问：${message}` }] }), signal: controller.signal }); if (!response.ok) throw new Error(`服务返回 HTTP ${response.status}。`); const json = await response.json() as { choices?: Array<{ message?: { content?: unknown } }> }; const answer = typeof json.choices?.[0]?.message?.content === "string" ? json.choices[0].message.content.trim() : ""; if (!answer) throw new Error("AI 服务未返回可用的互动回复。"); return appendTutorMessage(app, updated.id, "assistant", answer.slice(0, 20_000)); } catch (error) { throw new Error(safeFailure(error)); } finally { clearTimeout(timer); }
 }
