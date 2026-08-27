@@ -158,4 +158,9 @@
 - [x] 记录签名实际状态：应用使用 Apple Development 签名和时间戳；Gatekeeper 评估为 rejected，当前未使用 Developer ID 分发签名或完成 Apple 公证。
 - [ ] 排查目标 Mac 已安装 arm64 DMG 后应用无窗口、无安全提示的启动问题；先收集应用进程状态与最近崩溃报告，不读取 Keychain 或 API 密钥。
 - [ ] 修复实机日志确认的 Electron 沙盒预加载 ESM 格式错误和 `file://` 生产页面资源绝对路径错误，重新验证 DMG 主窗口。
-- [ ] 修复目标 Mac 实测确认的 DMG 首次启动路由 404：应用可通过 Go home 进入首页，但应直接打开工作台。
+- [x] 修复目标 Mac 实测确认的 DMG 首次启动路由 404：修复版 arm64 DMG 已在目标 Mac 首次直接进入工作台。
+- [ ] 核对 Anges AI 的官方 OpenAI 兼容配置；仅在 My Euclid 本地输入密钥，验证 Keychain 持久化和模型发现，禁止通过聊天或日志传递密钥。
+- [x] 已由用户在目标 Mac 的 My Euclid 本地填写 Agnes AI 配置；密钥未通过聊天传递。
+- [x] Agnes AI 已在目标 Mac 的 My Euclid 中通过模型发现/连接测试。
+- [x] 已在目标 Mac 完整退出并重开 My Euclid；Agnes AI 仍显示已配置且密钥不回显，Keychain 持久化验收通过。
+- [x] 将互动讲解、AI 草案/人工差异和备份恢复的自动回归整合进一条目标 Mac 终端命令；真实 AI 请求继续必须由用户逐次确认。

@@ -33,6 +33,7 @@ for test in \
   scripts/verify-ink-flow.mjs \
   scripts/verify-region-ocr.mjs \
   scripts/verify-assessment-report.mjs \
+  scripts/verify-assessment-diff-flow.mjs \
   scripts/verify-ai-config-security.mjs \
   scripts/verify-ai-runtime.mjs \
   scripts/verify-question-bank-flow.mjs \
