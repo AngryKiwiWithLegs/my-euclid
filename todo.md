@@ -158,3 +158,4 @@
 - [x] 记录签名实际状态：应用使用 Apple Development 签名和时间戳；Gatekeeper 评估为 rejected，当前未使用 Developer ID 分发签名或完成 Apple 公证。
 - [ ] 排查目标 Mac 已安装 arm64 DMG 后应用无窗口、无安全提示的启动问题；先收集应用进程状态与最近崩溃报告，不读取 Keychain 或 API 密钥。
 - [ ] 修复实机日志确认的 Electron 沙盒预加载 ESM 格式错误和 `file://` 生产页面资源绝对路径错误，重新验证 DMG 主窗口。
+- [ ] 修复目标 Mac 实测确认的 DMG 首次启动路由 404：应用可通过 Go home 进入首页，但应直接打开工作台。
