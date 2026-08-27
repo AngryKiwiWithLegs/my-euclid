@@ -153,5 +153,8 @@
 - [ ] 核查 arm64 架构、Node/pnpm 版本、私有仓库提交 `cc6027d` 与原生 SQLite 依赖重建状态。
 - [ ] 启动桌面端并完成 Keychain 可用性、已配置真实提供商的模型发现与逐次授权边界验证；不记录或导出密钥。
 - [ ] 执行本地资料导入、OCR、笔迹、互动讲解、AI 草案/人工差异审核、模考与备份恢复的实机检查，并记录结果。
-- [ ] 构建 arm64 DMG，校验包架构、安装、启动及 Gatekeeper/签名/公证状态。
-- [ ] 修复 electron-builder 26 对 `build.mac.arch` 的 schema 拒绝；arm64 目标由 `package:mac` CLI 参数指定后重新在目标 Mac 构建。
+- [x] 构建并校验 arm64 DMG：目标 Mac 已通过核心回归、DMG 布局和 `hdiutil verify` 完整性检查；尚待安装和启动实测。
+- [x] 修复 electron-builder 26 对 `build.mac.arch` 的 schema 拒绝；目标 Mac 已重新构建成功，arm64 目标由 `package:mac` CLI 参数指定。
+- [x] 记录签名实际状态：应用使用 Apple Development 签名和时间戳；Gatekeeper 评估为 rejected，当前未使用 Developer ID 分发签名或完成 Apple 公证。
+- [ ] 排查目标 Mac 已安装 arm64 DMG 后应用无窗口、无安全提示的启动问题；先收集应用进程状态与最近崩溃报告，不读取 Keychain 或 API 密钥。
+- [ ] 修复实机日志确认的 Electron 沙盒预加载 ESM 格式错误和 `file://` 生产页面资源绝对路径错误，重新验证 DMG 主窗口。
