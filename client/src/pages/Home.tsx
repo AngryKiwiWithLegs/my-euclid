@@ -143,6 +143,7 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
   const [pagePreview, setPagePreview] = useState<MyEuclidReviewPagePreview | null>(null);
   const [recognizingRegion, setRecognizingRegion] = useState(false);
   const [publishing, setPublishing] = useState(false);
+  const [savingDrafts, setSavingDrafts] = useState(false);
 
   useEffect(() => { if (!selectedId && documents[0]) setSelectedId(documents[0].sourceDocumentId); }, [documents, selectedId]);
   useEffect(() => {
@@ -188,11 +189,23 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
   const updateDraft = (index: number, key: keyof Omit<MyEuclidQuestionDraft, "subquestions">, value: string | number) => setDrafts(current => current.map((draft, draftIndex) => draftIndex === index ? { ...draft, [key]: value } : draft));
   const saveDrafts = async () => {
     if (!selectedId || !window.myEuclid) return;
-    await window.myEuclid.review.saveQuestionDrafts(selectedId, drafts);
-    const next = await window.myEuclid.review.getDocument(selectedId);
-    setDetail(next);
-    await refreshDocuments();
-    notify("题目与小问切分已确认并写入本地档案");
+    if (savingDrafts) return;
+    try {
+      const invalidDraft = drafts.find(draft => !draft.label.trim() || !draft.promptText.trim());
+      if (invalidDraft) throw new Error("请为每道题填写题号与题面文本后再确认写入题目档案。");
+      setSavingDrafts(true);
+      await window.myEuclid.review.saveQuestionDrafts(selectedId, drafts);
+      const next = await window.myEuclid.review.getDocument(selectedId);
+      if (!next) throw new Error("题目草案已保存，但无法重新读取当前资料。请重新打开审核工作台确认。");
+      setDetail(next);
+      setDrafts(next.questions);
+      await refreshDocuments();
+      notify("题目与小问切分已确认并写入本地档案；现在可发布为可训练题目。");
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "题目草案保存失败。请检查每道题的题号、题面文本和来源页。");
+    } finally {
+      setSavingDrafts(false);
+    }
   };
   const recognizeRegion = async (rect: MyEuclidNormalizedRect) => {
     if (!pageId || !selectedId || !window.myEuclid) return;
@@ -357,6 +370,18 @@ function TutorModal({ onClose }: { onClose: () => void }) {
   return <div className="modal-backdrop" role="dialog" aria-modal="true"><div className="modal-card tutor-modal"><button className="modal-close" onClick={onClose}><X size={19} /></button><p className="eyebrow">SOCRATIC AI TUTOR</p><h2>从线索开始，而不是从答案开始。</h2><div className="tutor-question"><Lightbulb size={19} /><p>{stages[stage]}</p></div><div className="tutor-tabs"><span className="is-current">破题切入点</span><span>必备知识</span><span>同类旧题</span><span>变体追问</span></div><textarea placeholder="写下你的想法，AI 会基于你的表述继续追问。" /><div className="modal-actions"><button className="secondary-button" onClick={() => setStage(Math.max(0, stage - 1))} disabled={stage === 0}>上一步</button><button className="primary-button" onClick={() => setStage(Math.min(stages.length - 1, stage + 1))}>{stage === stages.length - 1 ? "查看三种解法" : "继续引导"}<ChevronRight size={15} /></button></div></div></div>;
 }
 
+function LocalProfileModal({ currentName, onClose, onSaved, notify }: { currentName: string; onClose: () => void; onSaved: (name: string) => void; notify: (message: string) => void }) {
+  const [name, setName] = useState(currentName);
+  const save = () => {
+    const next = name.trim().slice(0, 24) || "我";
+    try { window.localStorage.setItem("my-euclid.local-user-name", next); } catch { /* local profile display may remain session-only */ }
+    onSaved(next);
+    notify("本地使用者资料已保存；My Euclid 不需要注册或登录账号。");
+    onClose();
+  };
+  return <div className="modal-backdrop" role="dialog" aria-modal="true" aria-labelledby="local-profile-title"><div className="modal-card answer-modal"><button className="modal-close" onClick={onClose} aria-label="关闭"><X size={19} /></button><p className="eyebrow">LOCAL PROFILE</p><h2 id="local-profile-title">本地使用者</h2><p>My Euclid 是个人离线备考工具，无需注册用户或登录外部账号。此名称只保存在当前设备，用于界面显示。</p><label className="ocr-editor"><span><strong>显示名称</strong><small>最多 24 个字符</small></span><input value={name} onChange={event => setName(event.target.value)} maxLength={24} autoFocus /></label><div className="modal-actions"><button className="secondary-button" onClick={onClose}>取消</button><button className="primary-button" onClick={save}><Check size={15} /> 保存本地资料</button></div></div></div>;
+}
+
 export default function Home() {
   const [active, setActive] = useState<View>(() => {
     const view = new URLSearchParams(window.location.search).get("view");
@@ -372,7 +397,9 @@ export default function Home() {
   const [trainingId, setTrainingId] = useState("E-2025-07b");
   const [tutorOpen, setTutorOpen] = useState(false);
   const [backupOpen, setBackupOpen] = useState(false);
+  const [profileOpen, setProfileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const [localUserName, setLocalUserName] = useState(() => { try { return window.localStorage.getItem("my-euclid.local-user-name")?.trim() || "我"; } catch { return "我"; } });
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
   const [assessmentSessions, setAssessmentSessions] = useState<MyEuclidPracticeSession[]>([]);
@@ -399,5 +426,5 @@ export default function Home() {
     if (active === "AI 服务") return <AiProvidersWorkspace notify={notify} />;
     return <Dashboard openImport={setImportKind} openTraining={openTraining} importedCount={importJobs.length} />;
   };
-  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => setBackupOpen(true)}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip"><span>明</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{backupOpen && <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
+  return <div className="archive-app"><SideNav active={active} onChange={setActive} /><main className="workbench"><header className="topbar"><div className="crumb"><span>档案工作台</span><i /> <span>{active}</span></div><div className="top-actions"><button className="quiet-button" onClick={() => setBackupOpen(true)}>本地备份 <ArrowUpRight size={15} /></button><button className="profile-chip" onClick={() => setProfileOpen(true)} aria-label="编辑本地使用者"><span>{localUserName.slice(0, 1)}</span><ChevronDown size={14} /></button></div></header>{renderView()}</main>{importKind && <ImportModal kind={importKind} onClose={() => setImportKind(null)} onCompleted={notify} openTraining={() => openTraining()} desktopImport={desktopImport} />}{backupOpen && <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />}{profileOpen && <LocalProfileModal currentName={localUserName} onClose={() => setProfileOpen(false)} onSaved={setLocalUserName} notify={notify} />}{tutorOpen && <TutorModal onClose={() => setTutorOpen(false)} />}{toast && <div className="toast" role="status"><GraduationCap size={17} /> {toast}</div>}</div>;
 }

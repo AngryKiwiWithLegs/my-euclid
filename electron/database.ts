@@ -481,11 +481,12 @@ export function saveQuestionDrafts(app: App, sourceDocumentId: string, questions
   const db = getDatabase(app);
   const now = new Date().toISOString();
   const save = db.transaction(() => {
-    db.prepare(`DELETE FROM question_drafts WHERE source_document_id = ?`).run(sourceDocumentId);
     const questionInsert = db.prepare(`INSERT INTO question_drafts (id, source_document_id, page_id, ordinal, label, title, prompt_text, review_status, created_at, updated_at)
-      VALUES (@id, @sourceDocumentId, @pageId, @ordinal, @label, @title, @promptText, 'confirmed', @now, @now)`);
+      VALUES (@id, @sourceDocumentId, @pageId, @ordinal, @label, @title, @promptText, 'confirmed', @now, @now)
+      ON CONFLICT(id) DO UPDATE SET page_id = excluded.page_id, ordinal = excluded.ordinal, label = excluded.label, title = excluded.title, prompt_text = excluded.prompt_text, review_status = 'confirmed', updated_at = excluded.updated_at`);
     const subquestionInsert = db.prepare(`INSERT INTO subquestion_drafts (id, question_draft_id, ordinal, label, prompt_text, review_status, created_at, updated_at)
-      VALUES (@id, @questionId, @ordinal, @label, @text, 'confirmed', @now, @now)`);
+      VALUES (@id, @questionId, @ordinal, @label, @text, 'confirmed', @now, @now)
+      ON CONFLICT(id) DO UPDATE SET question_draft_id = excluded.question_draft_id, ordinal = excluded.ordinal, label = excluded.label, prompt_text = excluded.prompt_text, review_status = 'confirmed', updated_at = excluded.updated_at`);
     questions.forEach(question => {
       const questionId = question.id ?? crypto.randomUUID();
       questionInsert.run({ ...question, id: questionId, sourceDocumentId, now });

@@ -1,7 +1,7 @@
 import os from "node:os";
 import path from "node:path";
 import { mkdtemp, mkdir, rm } from "node:fs/promises";
-import { closeDatabase, getDatabase, getQuestionBankQuestion, listQuestionBank, publishQuestionDrafts } from "../dist/electron/database.js";
+import { closeDatabase, getDatabase, getQuestionBankQuestion, listQuestionBank, publishQuestionDrafts, saveQuestionDrafts } from "../dist/electron/database.js";
 
 const root = await mkdtemp(path.join(os.tmpdir(), "my-euclid-question-bank-"));
 const app = { getPath: (name) => name === "userData" ? path.join(root, "user-data") : path.join(root, "temp") };
@@ -20,6 +20,9 @@ try {
   const metadata = { sourceName: "Euclid", competitionYear: 2025, questionNumber: 7, primaryTopic: "数列与递推", secondaryTopics: ["不变量"], difficulty: 4, questionType: "证明", methods: ["构造"], proofRequired: true, estimatedMinutes: 12, maximumPoints: 4, scoringNotes: "需证明归纳闭合。", priority: 3, tags: [{ category: "来源", value: "Euclid" }, { category: "状态", value: "重点" }], subquestions: [{ sourceSubquestionDraftId: subId, ordinal: 1, label: "(a)", promptText: "Establish the invariant.", maximumPoints: 4 }] };
   const published = publishQuestionDrafts(app, sourceId, [{ questionDraftId: draftId, metadata }]);
   if (published.length !== 1 || published[0].sourceQuestionDraftId !== draftId || published[0].subquestions.length !== 1 || published[0].tags.length !== 2 || published[0].pageNumber !== 1 || published[0].proofRequired !== true) throw new Error("Question publication did not preserve required source evidence or metadata.");
+  saveQuestionDrafts(app, sourceId, [{ id: draftId, pageId, ordinal: 7, label: "第 7 题", title: "递推中的不变量（修订）", promptText: "Prove the updated sequence invariant.", subquestions: [{ id: subId, ordinal: 1, label: "(a)", text: "Establish the updated invariant." }] }]);
+  const retainedAfterResave = getQuestionBankQuestion(app, published[0].id);
+  if (!retainedAfterResave || retainedAfterResave.title !== "递推中的不变量（修订）" || retainedAfterResave.subquestions[0]?.sourceSubquestionDraftId !== subId) throw new Error("Resaving a published question draft broke its question-bank traceability.");
   const found = listQuestionBank(app, { query: "递推", primaryTopic: "数列与递推" });
   if (found.length !== 1 || found[0].difficulty !== 4 || found[0].methods[0] !== "构造") throw new Error("Question bank search did not return published metadata.");
   const updated = publishQuestionDrafts(app, sourceId, [{ questionDraftId: draftId, metadata: { ...metadata, difficulty: 5, tags: [{ category: "来源", value: "Euclid" }, { category: "优先级", value: "冲刺" }] } }]);
