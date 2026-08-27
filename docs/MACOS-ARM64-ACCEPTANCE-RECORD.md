@@ -8,6 +8,8 @@
 
 用户在目标 Mac 上执行 `scripts/verify-macos-arm64.sh`。脚本完成并输出 `PASS: arm64 build, core local regression, DMG layout, and integrity checks completed.`。这表示项目在真实 Apple Silicon 环境已完成依赖安装、原生依赖重建、构建、核心本地回归、互动讲解模拟链路、AI 草案/人工评分差异、确认评分报告隔离、备份恢复、arm64 DMG 生成、DMG 挂载布局检查和 `hdiutil verify` 完整性校验。
 
+最新提交还在隔离环境中重跑了构建、TypeScript 检查以及 SQLite、资料归档、作答/笔迹、局部 OCR、评分报告、AI 配置安全、AI 判卷、互动讲解、题库发布、AI/人工差异、模考和 IRT 自适应训练回归，全部通过。此项不模拟或读取用户的真实 Agnes AI 密钥。
+
 | 验收项 | 实际结果 | 证据 |
 | --- | --- | --- |
 | Apple Silicon 构建 | 通过 | 脚本在 arm64 前置检查后继续并输出最终 PASS |
