@@ -1,4 +1,5 @@
 import Database from "better-sqlite3";
+import { mkdirSync } from "node:fs";
 import path from "node:path";
 import type { App } from "electron";
 import type { AbilitySnapshot, AdaptiveRecommendation, AdaptiveTrainingProfile, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, CreateMockExamInput, ImportJobSummary, InkLayer, InkResponseDetail, InkSaveResult, InkStroke, IrtItemParameter, KnowledgeEdge, KnowledgeNode, MockExamDetail, MockExamItem, MockExamStatus, MockExamSummary, NormalizedRect, OcrRegion, PracticeResponse, PracticeSessionDetail, PublishQuestionDraftInput, QuestionBankFilter, QuestionBankQuestion, QuestionBankStatus, QuestionDraft, QuestionKnowledgeMapping, ResponseAttachmentSummary, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPage, SaveAssessmentInput, SaveInkResponseInput, SavePracticeResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, TutorPlan, TutorSession } from "./types.js";
@@ -8,6 +9,7 @@ let database: Database.Database | null = null;
 export function getDatabase(app: App) {
   if (database) return database;
   const databasePath = path.join(app.getPath("userData"), "my-euclid.sqlite");
+  mkdirSync(path.dirname(databasePath), { recursive: true });
   database = new Database(databasePath);
   database.pragma("foreign_keys = ON");
   migrate(database);

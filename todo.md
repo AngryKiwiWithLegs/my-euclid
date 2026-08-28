@@ -174,3 +174,15 @@
 - [x] 执行最新版本完整自动验收：构建、类型检查、导入/OCR、题库、作答、评分、AI 模拟、互动讲解、差异审核、模考、IRT、备份恢复及 arm64 打包配置复核均通过。
 - [ ] 核验用户在目标 Mac 已导入的三份真实资料在本地档案中的名称、页数、OCR/审核状态及题目发布进度；仅经用户主动导出或本机可见状态读取。
 - [x] 新增并验证只读本地档案检查脚本；脚本不读取或上传题面、答卷内容、附件或 AI 密钥。
+
+
+# 最终交接与审计（2026-08-28）
+
+- [x] 审计 GitHub 私有仓库、远端 main、关键文件和误触发 Web 模板残留。
+- [x] 修复首次运行时 userData 父目录不存在导致 SQLite 检查器失败的问题。
+- [x] 运行 TypeScript 检查、Electron 构建和核心离线回归。
+- [x] 生成 `docs/PROJECT-DEVELOPMENT-ARCHIVE.md` 项目开发总档案。
+- [x] 生成 `docs/AI-HANDOFF.md` 下一 AI 接手文档。
+- [x] 生成 `docs/ACCEPTANCE-MATRIX.md` 验收矩阵。
+- [x] 生成 `docs/SIZE-AND-SCOPE-AUDIT.md` 规模与 token 审计。
+- [ ] 保存最终 checkpoint，并交付当前完成度、GitHub 完整性和剩余实机/公证事项。
