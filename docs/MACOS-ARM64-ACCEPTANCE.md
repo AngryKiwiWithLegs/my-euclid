@@ -33,7 +33,15 @@ bash scripts/verify-macos-arm64.sh
 
 执行脚本后，DMG 位于 `release/`。双击打开，将 `My Euclid.app` 拖入“应用程序”，然后从“应用程序”启动。脚本的 `codesign` 和 `spctl` 输出会记录为以下三种之一：已签名且可评估、已签名但未公证、未签名。当前仓库未配置 Apple Developer 签名身份或公证凭据，因此**可构建的 arm64 DMG 不等同于已签名/已公证发布版本**。
 
-如需让脚本从只读 DMG 内启动应用以核对首次启动，可改用：
+安装完成后，如果不想在 Finder 中寻找应用，可以在项目根目录执行一键启动脚本：
+
+```bash
+bash scripts/open-latest-macos-build.sh
+```
+
+脚本按以下顺序处理：优先打开已安装的 `/Applications/My Euclid.app`；若应用尚未安装，则打开仓库 `release/` 下找到的最新 `.app`；如果只有 DMG，则打开最新 `.dmg` 供安装。脚本只调用 macOS `open`，不会读取 userData、Keychain、题面、答卷或 API key。
+
+如需让验证脚本从只读 DMG 内启动应用以核对首次启动，可改用：
 
 ```bash
 bash scripts/verify-macos-arm64.sh --open-dmg
