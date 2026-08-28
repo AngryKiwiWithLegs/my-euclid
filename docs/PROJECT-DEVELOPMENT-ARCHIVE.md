@@ -13,7 +13,7 @@ My Euclid 是面向个人使用的 macOS Apple Silicon 备考客户端。核心�
 
 ## 2. 当前状态结论
 
-截至本次审计，GitHub `main` 的最新提交为 `f0e13b6`（`feat: add local archive status inspector`），仓库为私有仓库，关键 Electron、React、SQLite、AI、验收和文档文件均存在。此前误触发的 Web 全栈能力升级已经回滚，`drizzle/` 残留未进入当前工作树；本次只保留一个有意的数据库初始化修复：首次运行时递归创建 `app.getPath("userData")` 对应的父目录。
+截至本次审计，GitHub 私有仓库 `dfdd2001-source/my-euclid` 的当前稳定提交为 `6ac5b8a`（本轮交接 checkpoint），其父提交 `4190a32` 已记录首次运行 `userData` 目录修复与交接审计，祖先提交 `f0e13b6` 为本地档案检查器里程碑。`git branch -vv` 显示本地 `main` 与 WebDev 的 `origin/main` 指向 `6ac5b8a`；GitHub 专用远端名为 `github`，历史中明确保留 Electron 功能和桌面基础里程碑（如 `92c6c45`、`cc6027d`、`2eb766e`、`915b57b`）。此前误触发的 Web 全栈能力升级已经回滚，`drizzle/` 残留未进入当前工作树；本轮只保留一个有意的数据库初始化修复：首次运行时递归创建 `app.getPath("userData")` 对应的父目录。
 
 总体完成度建议按维度而不是单一百分比表达：核心产品功能约 **90%**，本地自动回归约 **95%**，Apple Silicon 实机验证约 **80%**，真实 AI 服务的用户授权链路约 **85%**，签名约 **80%**，公证与可直接分发约 **30%**。如果只问“能否继续个人备考使用”，答案是基本可以；如果问“是否已经达到可无说明地交付给任何 Mac 用户的公证安装包”，答案是否定的，仍需完成 Developer ID/公证及最终人工验收。
 
@@ -91,7 +91,11 @@ My Euclid 是面向个人使用的 macOS Apple Silicon 备考客户端。核心�
 | `electron/database.ts` | SQLite schema、迁移和持久化 |
 | `scripts/inspect-local-archive.mjs` | 本地档案数量检查器 |
 
-## 9. 结论
+## 9. Git 审计证据
+
+本轮已通过 Git 历史核对关键提交链：`92c6c45 feat: add question bank mock exams and adaptive IRT training`、`cc6027d feat: add auditable Socratic tutor and score diff review`、`2eb766e fix: make macOS arm64 builder config valid`、`915b57b fix: use hash routing in packaged Electron app`、`7626ed8 fix: make local review and profile actions reliable`、`3bc112a fix: guide empty question confirmation`、`f0e13b6 feat: add local archive status inspector`、`4190a32` 交接审计和 `6ac5b8a` 当前启动脚本 checkpoint 均存在于当前分支历史。由于 WebDev `origin` 是受保护的 artifact remote，非交互 `git ls-remote origin` 不作为 GitHub 真实性证据；仓库完整性以预认证的 `github` 远端、当前分支历史和 GitHub CLI 审计为准。
+
+## 10. 结论
 
 My Euclid 已从概念验证推进到**可供个人继续使用的本地桌面 beta/候选交付版**。其最有价值的成果不是某个单独页面，而是建立了数据所有权、证据链、人工复核、AI 可撤销和自适应训练的共同底座。剩余工作主要集中在文档统一、真实 Mac 数据核验和公证发行，而不是再扩大功能范围。
 
