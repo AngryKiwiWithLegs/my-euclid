@@ -22,4 +22,4 @@ My Euclid 将每份导入资料先归档为不可变原件，再从原件生成�
 
 ## 验证方式
 
-仓库包含 SQLite ABI 冒烟测试、原件归档—页面—题目/小问确认的集成测试、PDF 页面文字提取测试、图片 OCR 测试，以及图片和 PDF 页面预览—局部 OCR—审计回链测试。运行前请先执行 `pnpm build:electron`，以 `manus-md-to-pdf scripts/fixtures/region-ocr-scan-sample.md /tmp/euclid-region-ocr-scan-sample.pdf` 生成 PDF 夹具，再使用 Electron 的 Node 运行时运行 `pnpm exec electron --runAsNode scripts/verify-region-ocr.mjs /tmp/euclid-region-ocr-scan-sample.pdf`。实际 macOS 界面验证需在 Apple Silicon 目标机中执行 `pnpm dev:desktop`。
+仓库包含 SQLite ABI 冒烟测试、原件归档—页面—题目/小问确认的集成测试、PDF 页面文字提取测试、图片 OCR 测试，以及图片和 PDF 页面预览—局部 OCR—审计回链测试。运行前请先执行 `pnpm build:electron`，以 `pandoc scripts/fixtures/region-ocr-scan-sample.md -o /tmp/euclid-region-ocr-scan-sample.pdf` 生成 PDF 夹具（需本机安装 pandoc），再使用 Electron 的 Node 运行时运行 `pnpm exec electron --runAsNode scripts/verify-region-ocr.mjs /tmp/euclid-region-ocr-scan-sample.pdf`。实际 macOS 界面验证需在 Apple Silicon 目标机中执行 `pnpm dev:desktop`。

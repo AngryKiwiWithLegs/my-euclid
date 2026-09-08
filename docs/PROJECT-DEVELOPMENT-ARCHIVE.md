@@ -2,7 +2,7 @@
 
 **文档版本：** 2026-08-28  
 **项目：** My Euclid 个人欧几里得数学竞赛备考客户端  
-**作者：** Manus AI  
+**作者：** My Euclid 开发记录（AI 协作维护）
 **仓库：** `https://github.com/dfdd2001-source/my-euclid`（私有）
 
 ## 1. 项目定位

@@ -54,7 +54,7 @@
 
 | 控制项 | 状态 | 约束 |
 | --- | --- | --- |
-| 不要求外部账户注册 | PASS | 本地 profile 编辑器；不把 Manus OAuth 当作桌面产品需求 |
+| 不要求外部账户注册 | PASS | 本地 profile 编辑器；不把任何外部平台 OAuth 当作桌面产品需求 |
 | API key 不进 SQLite | PASS | 安全存储边界和测试覆盖 |
 | API key 不进备份 | PASS | 备份只包含本地业务数据和文件，不含 key |
 | Renderer 无任意 fs | PASS | 通过 preload 白名单调用 |

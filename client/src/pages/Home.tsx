@@ -6,6 +6,8 @@ import { ChangeEvent, useEffect, useMemo, useState } from "react";
 import { InkCanvas } from "@/components/InkCanvas";
 import { AdaptiveTrainingWorkspace } from "@/components/AdaptiveTrainingWorkspace";
 import { MockExamWorkspace } from "@/components/MockExamWorkspace";
+import { BrandMark } from "@/components/BrandMark";
+import { ReportDecor } from "@/components/ReportDecor";
 import "@/components/TrainingHub.css";
 import { PublishedQuestionLibrary } from "@/components/PublishedQuestionLibrary";
 import { QuestionPublishPanel } from "@/components/QuestionPublishPanel";
@@ -85,7 +87,7 @@ const evidenceItems = [
 
 function SideNav({ active, onChange }: { active: View; onChange: (item: View) => void }) {
   return <aside className="sidebar">
-    <div className="brand-lockup"><img src="/manus-storage/euclid-archive-logo_98b594c5.png" alt="My Euclid 抽象作图标志" className="brand-mark" /><div><p className="brand-kicker">PERSONAL MATH ARCHIVE</p><h1>My Euclid</h1></div></div>
+    <div className="brand-lockup"><BrandMark className="brand-mark" /><div><p className="brand-kicker">PERSONAL MATH ARCHIVE</p><h1>My Euclid</h1></div></div>
     <nav aria-label="主导航" className="primary-nav">{navItems.map(({ label, icon: Icon }) => <button key={label} className={`nav-item ${active === label ? "is-active" : ""}`} onClick={() => onChange(label)}><Icon size={18} strokeWidth={1.7} /><span>{label}</span></button>)}</nav>
     <div className="sidebar-foot"><div className="local-status"><span /> 本地档案模式</div><p>资料、作答与报告默认保存在本机。AI 请求由你主动发起。</p></div>
   </aside>;
@@ -295,7 +297,7 @@ function EvidenceView({ openTutor, openTraining }: { openTutor: (id: string) => 
 
 function ReportsView() {
   return <div className="view-shell"><SectionTitle eyebrow="LONGITUDINAL EVIDENCE" title="报告与轨迹" action={<button className="text-action"><Download size={15} /> 导出报告结构</button>} />
-    <div className="report-intro"><div><p className="eyebrow">NOT ENOUGH DATA YET</p><h2>第一份真实答卷会从这里开始留下轨迹。</h2><p>提交在线或纸质答卷后，系统将按题型、知识模块、得分点、错因、用时与作答形态生成统一报告。</p></div><img src="/manus-storage/euclid-archive-report_69f424c7.jpg" alt="数学报告材料装饰" /></div>
+    <div className="report-intro"><div><p className="eyebrow">NOT ENOUGH DATA YET</p><h2>第一份真实答卷会从这里开始留下轨迹。</h2><p>提交在线或纸质答卷后，系统将按题型、知识模块、得分点、错因、用时与作答形态生成统一报告。</p></div><ReportDecor className="report-intro-decor" /></div>
     <div className="report-grid"><article className="report-card wide"><div className="card-head"><div><p className="eyebrow">PROGRESS CURVE</p><h3>进步曲线</h3></div><span>等待第一批真实数据</span></div><div className="empty-chart"><div className="chart-axis" /><div className="chart-line dashed" /><div className="chart-line dashed line-two" /><p>完成训练后，曲线将展示能力估计与置信区间。</p></div></article>
       <article className="report-card"><div className="card-head"><div><p className="eyebrow">MODULE BREAKDOWN</p><h3>模块分析</h3></div><BarChart3 size={18} /></div><div className="module-list">{["代数与函数", "几何", "计数与概率", "数论"].map(item => <div key={item}><span>{item}</span><i><b /></i><em>待测</em></div>)}</div></article>
       <article className="report-card"><div className="card-head"><div><p className="eyebrow">IRT PROFILE</p><h3>能力估计</h3></div><BrainCircuit size={18} /></div><div className="irt-empty"><Target size={30} /><p>系统会在积累足够的真实作答后显示个人能力参数与上游依赖路径。</p></div></article></div>

@@ -41,7 +41,7 @@ pnpm dev
 
 浏览器打开开发服务地址即可查看“欧几里得档案室”工作台预览。浏览器预览不会接触本地资料；要验证真实本地归档，请使用 `pnpm dev:desktop` 启动 Electron。
 
-本地回归验证会覆盖归档、PDF/图片 OCR、扫描 PDF 页图渲染、区域 OCR、笔迹与备份恢复。构建桌面端后，可运行 `pnpm exec electron --runAsNode scripts/verify-region-ocr.mjs /tmp/euclid-region-ocr-scan-sample.pdf` 验证区域 OCR；PDF 夹具可由 `manus-md-to-pdf scripts/fixtures/region-ocr-scan-sample.md /tmp/euclid-region-ocr-scan-sample.pdf` 生成。
+本地回归验证会覆盖归档、PDF/图片 OCR、扫描 PDF 页图渲染、区域 OCR、笔迹与备份恢复。构建桌面端后，可运行 `pnpm exec electron --runAsNode scripts/verify-region-ocr.mjs /tmp/euclid-region-ocr-scan-sample.pdf` 验证区域 OCR；PDF 夹具可由 `pandoc scripts/fixtures/region-ocr-scan-sample.md -o /tmp/euclid-region-ocr-scan-sample.pdf` 生成（需本机安装 pandoc）。
 
 ## 隐私与资料边界
 
