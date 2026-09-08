@@ -1,6 +1,8 @@
 {
   "name": "euclid-prep-client",
   "version": "1.0.0",
+  "description": "面向个人使用的 macOS 欧几里得数学竞赛备考客户端：本地归档、可审核 OCR、统一作答与可审计评分。",
+  "author": "dfdd2001-source",
   "type": "module",
   "license": "MIT",
   "main": "dist/electron/main.js",
@@ -126,7 +128,8 @@
       "target": [
         "dmg"
       ],
-      "category": "public.app-category.education"
+      "category": "public.app-category.education",
+      "icon": "packaging/icon.icns"
     }
   }
 }
