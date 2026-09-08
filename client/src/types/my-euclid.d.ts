@@ -20,6 +20,8 @@ declare global {
   interface MyEuclidQuestionBankSubquestion { id: string; sourceSubquestionDraftId?: string; ordinal: number; label: string; promptText: string; maximumPoints?: number; }
   interface MyEuclidQuestionBankQuestion { id: string; sourceQuestionDraftId: string; sourceDocumentId: string; pageId: string; originalName: string; pageNumber: number; label: string; title: string; promptText: string; status: MyEuclidQuestionBankStatus; sourceName: string; competitionYear?: number; questionNumber?: number; primaryTopic: string; secondaryTopics: string[]; difficulty?: number; questionType: string; methods: string[]; proofRequired: boolean; estimatedMinutes?: number; maximumPoints?: number; scoringNotes: string; priority: number; tags: MyEuclidQuestionTag[]; subquestions: MyEuclidQuestionBankSubquestion[]; createdAt: string; updatedAt: string; }
   interface MyEuclidQuestionPublishInput { questionDraftId: string; metadata: { sourceName: string; competitionYear?: number; questionNumber?: number; primaryTopic: string; secondaryTopics: string[]; difficulty?: number; questionType: string; methods: string[]; proofRequired: boolean; estimatedMinutes?: number; maximumPoints?: number; scoringNotes: string; priority: number; tags: Array<{ category: string; value: string; source?: "manual" | "ai_suggestion" }>; subquestions: Array<{ sourceSubquestionDraftId?: string; ordinal: number; label: string; promptText: string; maximumPoints?: number; }>; }; }
+  interface MyEuclidAutoReviewDocumentResult { sourceDocumentId: string; originalName: string; pagesReviewed: number; questionsPublished: number; }
+  interface MyEuclidAutoReviewSummary { providerLabel: string; model: string; documents: MyEuclidAutoReviewDocumentResult[]; failures: string[]; }
   type MyEuclidMockExamStatus = "draft" | "active" | "submitted" | "archived";
   interface MyEuclidMockExamItem { id: string; ordinal: number; questionId: string; maximumPoints?: number; title: string; label: string; promptText: string; primaryTopic: string; difficulty?: number; sessionId: string; responseCount: number; submittedResponseCount: number; }
   interface MyEuclidMockExam { id: string; title: string; status: MyEuclidMockExamStatus; durationSeconds: number; questionCount: number; startedAt?: string; submittedAt?: string; createdAt: string; updatedAt: string; items: MyEuclidMockExamItem[]; }
@@ -109,6 +111,9 @@ declare global {
         prepareTutor: (input: { questionId: string }) => Promise<{ authorizationToken: string; expiresAt: string; providerLabel: string; model: string; questionId: string; questionText: string; answerText: string; disclosure: string[] }>;
         runTutor: (authorizationToken: string) => Promise<MyEuclidTutorSession>;
         askTutor: (input: { sessionId: string; message: string }) => Promise<MyEuclidTutorSession>;
+        autoReviewAll: () => Promise<MyEuclidAutoReviewSummary>;
+        generateVariants: (input: { questionId: string; count?: number }) => Promise<MyEuclidQuestionBankQuestion[]>;
+        composeMockExam: (input?: { title?: string }) => Promise<{ exam: MyEuclidMockExam; rationale: string; providerLabel: string; model: string }>;
         getProviderStatus: () => Promise<MyEuclidAiProviderStatus>;
         saveProviderConfig: (input: { providerLabel: string; baseUrl: string; model: string; apiKey: string }) => Promise<MyEuclidAiProviderStatus>;
         removeProviderConfig: () => Promise<MyEuclidAiProviderStatus>;

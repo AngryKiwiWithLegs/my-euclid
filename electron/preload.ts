@@ -1,5 +1,5 @@
 import { contextBridge, ipcRenderer } from "electron";
-import type { AdaptiveTrainingProfile, AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, BackupExportResult, BackupSelection, CreateMockExamInput, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, MockExamDetail, NormalizedRect, OcrRegion, PracticeSessionDetail, PublishQuestionDraftInput, QuestionBankFilter, QuestionBankQuestion, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput, TutorPrepareInput, TutorPreview, TutorSession } from "./types.js";
+import type { AdaptiveTrainingProfile, AiAssessmentPrepareInput, AiAssessmentPreview, AiAssessmentRunResult, AiConnectionResult, AiProviderConfigInput, AiProviderRegistry, AiProviderStatus, ArchiveHealth, AssessmentDashboard, AssessmentRecordDetail, AssessmentRecordSummary, AutoReviewSummary, BackupExportResult, BackupSelection, CreateMockExamInput, ImportJobSummary, ImportKind, ImportResult, InkResponseDetail, InkSaveResult, MockExamComposeInput, MockExamDetail, NormalizedRect, OcrRegion, PracticeSessionDetail, PublishQuestionDraftInput, QuestionBankFilter, QuestionBankQuestion, QuestionDraft, ReviewDocumentDetail, ReviewDocumentSummary, ReviewPagePreview, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput, TutorPrepareInput, TutorPreview, TutorSession, VariantGenerateInput } from "./types.js";
 
 const validKind = (kind: ImportKind) => kind === "source_document" || kind === "paper_response";
 const toDefaultStatus = (registry: AiProviderRegistry): AiProviderStatus => {
@@ -61,6 +61,9 @@ contextBridge.exposeInMainWorld("myEuclid", {
     prepareTutor: (input: TutorPrepareInput): Promise<TutorPreview> => ipcRenderer.invoke("ai:prepare-tutor", input),
     runTutor: (authorizationToken: string): Promise<TutorSession> => ipcRenderer.invoke("ai:run-tutor", authorizationToken),
     askTutor: (input: { sessionId: string; message: string }): Promise<TutorSession> => ipcRenderer.invoke("ai:ask-tutor", input),
+    autoReviewAll: (): Promise<AutoReviewSummary> => ipcRenderer.invoke("ai:auto-review-all"),
+    generateVariants: (input: VariantGenerateInput): Promise<QuestionBankQuestion[]> => ipcRenderer.invoke("ai:generate-variants", input),
+    composeMockExam: (input?: MockExamComposeInput): Promise<{ exam: MockExamDetail; rationale: string; providerLabel: string; model: string }> => ipcRenderer.invoke("ai:compose-mock-exam", input ?? {}),
     getProviderStatus: async (): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:get-provider-registry")),
     saveProviderConfig: async (input: Omit<AiProviderConfigInput, "enabled">): Promise<AiProviderStatus> => toDefaultStatus(await ipcRenderer.invoke("ai:save-provider", { ...input, enabled: true })),
     removeProviderConfig: async (): Promise<AiProviderStatus> => {

@@ -8,8 +8,9 @@ import { getReviewDocument, listReviewDocuments, saveQuestionDrafts, updatePageO
 import { getReviewPagePreview, recognizeReviewRegion } from "./review-media.js";
 import { getAiProviderRegistry, removeAiProvider, saveAiProvider, setDefaultAiProvider } from "./ai-config.js";
 import { askTutorQuestion, listAiProviderModels, prepareAiAssessment, prepareTutorSession, runAuthorizedAiAssessment, runAuthorizedTutorSession, testAiProvider } from "./ai-runtime.js";
+import { autoReviewAllDocuments, composeMockExamWithAi, generateVariantQuestions } from "./ai-authoring.js";
 import { importResponseAttachments, responseFileFilters, saveResponse } from "./practice.js";
-import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInput, ImportKind, ImportResult, NormalizedRect, PublishQuestionDraftInput, QuestionBankFilter, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput, TutorPrepareInput } from "./types.js";
+import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInput, ImportKind, ImportResult, MockExamComposeInput, NormalizedRect, PublishQuestionDraftInput, QuestionBankFilter, QuestionDraft, SaveAssessmentInput, SaveInkResponseInput, SaveIrtItemParameterInput, SaveKnowledgeEdgeInput, SaveKnowledgeNodeInput, SavePracticeResponseInput, TutorPrepareInput, VariantGenerateInput } from "./types.js";
 
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
@@ -157,6 +158,17 @@ app.whenReady().then(async () => {
   ipcMain.handle("ai:remove-provider", (_event, providerId: string) => removeAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
   ipcMain.handle("ai:test-provider", (_event, providerId: string) => testAiProvider(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
   ipcMain.handle("ai:list-models", (_event, providerId: string) => listAiProviderModels(app, safeStorage, requireLocalId(providerId, "AI 服务标识")));
+  ipcMain.handle("ai:auto-review-all", async () => autoReviewAllDocuments(app, safeStorage));
+  ipcMain.handle("ai:generate-variants", (_event, input: VariantGenerateInput) => {
+    if (!input || typeof input.questionId !== "string" || !uuidPattern.test(input.questionId)) throw new Error("变式题目标识无效。");
+    if (input.count !== undefined && (!Number.isInteger(input.count) || input.count < 1 || input.count > 5)) throw new Error("变式数量必须为 1 到 5。");
+    return generateVariantQuestions(app, safeStorage, { questionId: input.questionId, count: input.count });
+  });
+  ipcMain.handle("ai:compose-mock-exam", (_event, input?: MockExamComposeInput) => {
+    if (input !== undefined && input !== null && typeof input !== "object") throw new Error("AI 组卷参数无效。");
+    if (input?.title !== undefined && (typeof input.title !== "string" || input.title.trim().length > 200)) throw new Error("试卷标题无效。");
+    return composeMockExamWithAi(app, safeStorage, { title: typeof input?.title === "string" ? input.title : undefined });
+  });
   ipcMain.handle("ai:prepare-assessment", (_event, input: AiAssessmentPrepareInput) => prepareAiAssessment(app, safeStorage, requireAiAssessmentPrepare(input)));
   ipcMain.handle("ai:run-assessment", (_event, authorizationToken: string) => {
     if (typeof authorizationToken !== "string" || !uuidPattern.test(authorizationToken)) throw new Error("AI 判卷授权标识无效。");

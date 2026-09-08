@@ -446,3 +446,26 @@ export interface AiAssessmentRunResult {
   model: string;
   responseExcerpt: string;
 }
+
+export interface AutoReviewDocumentResult {
+  sourceDocumentId: string;
+  originalName: string;
+  pagesReviewed: number;
+  questionsPublished: number;
+}
+
+export interface AutoReviewSummary {
+  providerLabel: string;
+  model: string;
+  documents: AutoReviewDocumentResult[];
+  failures: string[];
+}
+
+export interface VariantGenerateInput {
+  questionId: string;
+  count?: number;
+}
+
+export interface MockExamComposeInput {
+  title?: string;
+}
