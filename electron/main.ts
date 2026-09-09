@@ -1,4 +1,5 @@
 import { app, BrowserWindow, dialog, ipcMain, safeStorage, shell } from "electron";
+import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { archiveFiles, ensureArchiveDirectory, importFileFilters } from "./archive.js";
@@ -15,6 +16,20 @@ import type { AiAssessmentPrepareInput, AiProviderConfigInput, CreateMockExamInp
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
+
+// 统一数据目录：开发与打包版本一致使用 "My Euclid"；首次切换时从旧目录（euclid-prep-client）整体迁移。
+const canonicalUserData = path.join(app.getPath("appData"), "My Euclid");
+if (app.getPath("userData") !== canonicalUserData) {
+  try {
+    const legacyUserData = path.join(app.getPath("appData"), "euclid-prep-client");
+    if (!fs.existsSync(path.join(canonicalUserData, "my-euclid.sqlite")) && fs.existsSync(path.join(legacyUserData, "my-euclid.sqlite"))) {
+      fs.cpSync(legacyUserData, canonicalUserData, { recursive: true });
+    }
+    app.setPath("userData", canonicalUserData);
+  } catch {
+    /* 迁移失败时保持默认目录，不影响启动 */
+  }
+}
 const uuidPattern = /^[0-9a-f]{8}-[0-9a-f]{4}-[1-8][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i;
 
 function requireLocalId(value: unknown, label: string) {

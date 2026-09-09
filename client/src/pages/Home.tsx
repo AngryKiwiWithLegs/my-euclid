@@ -157,6 +157,10 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
       const detail = summary.documents.map(item => `《${item.originalName}》校对 ${item.pagesReviewed} 页、发布 ${item.questionsPublished} 题`).join("；");
       notify(`AI 自动审核完成（${summary.providerLabel} · ${summary.model}）：${detail || "无资料被处理"}${summary.failures.length ? `；未完成 → ${summary.failures.join("；")}` : ""}`);
       await refreshDocuments();
+      if (selectedId) {
+        const next = await window.myEuclid.review.getDocument(selectedId);
+        if (next) { setDetail(next); setDrafts(next.questions ?? []); }
+      }
     } catch (error) {
       notify(error instanceof Error ? error.message : "AI 自动审核失败");
     } finally {

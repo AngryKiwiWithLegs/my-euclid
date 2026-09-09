@@ -2,6 +2,7 @@
  * 欧几里得档案室：AI 自动审核与出题管道。
  * 使用用户配置的默认 AI 服务（OpenAI 兼容）完成 OCR 校对、题目切分与元数据建议，
  * 全部产物仍走既有草案→发布链路并保留来源回链；密钥仅在主进程临时解密，不落盘、不返回 renderer。
+ * 设计约束：即使 AI 切分失败或格式不符，也按页兜底生成草案并发布，保证资料不滞留在"已审未入库"状态。
  */
 import { randomUUID } from "node:crypto";
 import type { App } from "electron";
@@ -46,6 +47,14 @@ function asString(value: unknown, limit: number): string {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
+function pickString(source: Record<string, unknown>, keys: string[], limit: number): string {
+  for (const key of keys) {
+    const value = asString(source[key], limit);
+    if (value) return value;
+  }
+  return "";
+}
+
 function asStringArray(value: unknown, maxItems: number, maxLen: number): string[] {
   return Array.isArray(value) ? value.slice(0, maxItems).map(item => asString(item, maxLen)).filter(Boolean) : [];
 }
@@ -53,6 +62,62 @@ function asStringArray(value: unknown, maxItems: number, maxLen: number): string
 function asOptionalNumber(value: unknown, min: number, max: number): number | undefined {
   const number = typeof value === "number" ? value : typeof value === "string" && value.trim() ? Number(value) : NaN;
   return Number.isFinite(number) && number >= min && number <= max ? number : undefined;
+}
+
+/** 把 AI 返回的题目对象规范化为草案 + 发布元数据；接受多种常见字段命名。 */
+function normalizeAiQuestion(rawQuestion: unknown, fallbacks: { pageId: string; labelPrefix: string; sourceName: string; primaryTopic?: string; difficulty?: number; maximumPoints?: number; questionType?: string }, index: number): { draft: QuestionDraft; meta: QuestionBankMetadataInput } | null {
+  const question = (rawQuestion ?? {}) as Record<string, unknown>;
+  const promptText = pickString(question, ["prompt_text", "promptText", "text", "question", "content"], 20_000);
+  if (!promptText) return null;
+  const rawSubquestions = question.subquestions ?? question.sub_questions ?? question.parts;
+  const subquestions = Array.isArray(rawSubquestions) ? (rawSubquestions as unknown[]).slice(0, 12).map((rawSub, subIndex) => {
+    const sub = (rawSub ?? {}) as Record<string, unknown>;
+    return { id: randomUUID(), label: pickString(sub, ["label", "name", "mark"], 20) || `(${String.fromCharCode(97 + subIndex)})`, text: pickString(sub, ["text", "prompt_text", "promptText", "content"], 8_000), ordinal: subIndex + 1 };
+  }).filter(sub => sub.text) : [];
+  const meta = (question.metadata ?? question.meta ?? {}) as Record<string, unknown>;
+  const draft: QuestionDraft = {
+    id: randomUUID(),
+    pageId: fallbacks.pageId,
+    label: pickString(question, ["label", "question_number_label", "number"], 20) || `${fallbacks.labelPrefix}${index + 1}`,
+    title: pickString(question, ["title", "name"], 300) || `题目 ${index + 1}`,
+    promptText,
+    ordinal: index + 1,
+    subquestions,
+  };
+  return {
+    draft,
+    meta: {
+      sourceName: pickString(meta, ["source_name", "sourceName"], 200) || fallbacks.sourceName,
+      competitionYear: asOptionalNumber(meta.competition_year ?? meta.competitionYear, 1900, 2100),
+      questionNumber: asOptionalNumber(meta.question_number ?? meta.questionNumber, 1, 100),
+      primaryTopic: pickString(meta, ["primary_topic", "primaryTopic", "topic"], 60) || fallbacks.primaryTopic || "未分类",
+      secondaryTopics: asStringArray(meta.secondary_topics ?? meta.secondaryTopics, 8, 40),
+      difficulty: asOptionalNumber(meta.difficulty, 1, 5) ?? fallbacks.difficulty,
+      questionType: pickString(meta, ["question_type", "questionType", "type"], 60) || fallbacks.questionType || "解答题",
+      methods: asStringArray(meta.methods, 8, 60),
+      proofRequired: false,
+      estimatedMinutes: asOptionalNumber(meta.estimated_minutes ?? meta.estimatedMinutes, 1, 300),
+      maximumPoints: asOptionalNumber(meta.maximum_points ?? meta.maximumPoints, 0.5, 100) ?? fallbacks.maximumPoints,
+      scoringNotes: pickString(meta, ["scoring_notes", "scoringNotes", "notes"], 2_000),
+      priority: 2,
+      tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }],
+      subquestions: draft.subquestions.map(sub => ({ sourceSubquestionDraftId: sub.id, ordinal: sub.ordinal, label: sub.label, promptText: sub.text })),
+    },
+  };
+}
+
+/** 逐条发布草案；单条失败不影响其余，返回发布成功的题目与失败明细。 */
+function publishDraftsIndividually(app: App, sourceDocumentId: string, pairs: Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }>) {
+  const published: ReturnType<typeof listQuestionBank> = [];
+  const failures: string[] = [];
+  for (const pair of pairs) {
+    try {
+      published.push(...publishQuestionDrafts(app, sourceDocumentId, [{ questionDraftId: pair.draft.id!, metadata: pair.meta }]));
+    } catch (error) {
+      failures.push(`${pair.draft.label}: ${error instanceof Error ? error.message : "发布失败"}`);
+    }
+  }
+  return { published, failures };
 }
 
 /* ---------------------------------------------------------------- */
@@ -63,10 +128,28 @@ function buildOcrPrompt(ocrText: string) {
   return `以下是一份数学竞赛试卷某页的 OCR 识别文本。请校对其中明显的识别错误：修复数学符号、上下标、标点和明显的错字，保持原始内容、语言和题意完全不变；无法确定的字符保持原样。不要翻译，不要改写，不要添加解释。\n输出严格 JSON：{"corrected_text": string}\n\nOCR 文本：\n${ocrText.slice(0, 30_000)}`;
 }
 
-function buildSplitPrompt(pages: Array<{ page_number: number; text: string }>, originalName: string) {
-  const pageBlock = pages.map(page => `【第 ${page.page_number} 页】\n${page.text.slice(0, 12_000)}`).join("\n\n");
+function buildSplitPrompt(pages: Array<{ pageNumber: number; text: string }>, originalName: string) {
+  const pageBlock = pages.map(page => `【第 ${page.pageNumber} 页】\n${page.text.slice(0, 12_000)}`).join("\n\n");
   const schema = `{"questions":[{"page_number":number,"label":string,"title":string,"prompt_text":string,"subquestions":[{"label":string,"text":string}],"metadata":{"source_name":string,"competition_year":number|null,"question_number":number|null,"primary_topic":string,"secondary_topics":string[],"question_type":string,"methods":string[],"difficulty":number|null,"estimated_minutes":number|null,"maximum_points":number|null,"scoring_notes":string}}]}`;
-  return `你是欧几里得数学竞赛（Euclid Mathematics Contest）的试卷档案专家。下面是试卷《${originalName}》各页的 OCR 文本。请把整份资料切分为独立的题目（大题）：\n- 每道题包含题号 label（如 "1"、"3"）、简短中文标题 title、完整题面 prompt_text（保留英文原题文本与数学记号，不要翻译）。\n- 大题下的小问拆分为 subquestions（label 如 "(a)"，text 为该小问文本）。没有小问时留空数组。\n- metadata 给出归档建议：source_name（来源试卷名）、competition_year、question_number、primary_topic（主考点，中文，如"数列与递推"）、secondary_topics、question_type（如"解答题"）、methods（解法关键词）、difficulty（1-5）、estimated_minutes、maximum_points（该题满分）、scoring_notes（得分点提示）。\n- 只依据文本中真实出现的题目；不要编造。输出严格 JSON，结构：${schema}\n\n各页文本：\n${pageBlock}`;
+  return `你是欧几里得数学竞赛（Euclid Mathematics Contest）的试卷档案专家。下面是试卷《${originalName}》各页的 OCR 文本。请把整份资料切分为独立的题目（大题）：\n- 每道题包含题号 label（如 "1"、"3"）、简短中文标题 title、完整题面 prompt_text（保留英文原题文本与数学记号，不要翻译）。\n- 大题下的小问拆分为 subquestions（label 如 "(a)"，text 为该小问文本）。没有小问时留空数组。\n- metadata 给出归档建议：source_name、competition_year、question_number、primary_topic（主考点，中文，如"数列与递推"）、secondary_topics、question_type（如"解答题"）、methods、difficulty（1-5）、estimated_minutes、maximum_points（该题满分）、scoring_notes。\n- 只依据文本中真实出现的题目；不要编造。必须为每一道真实题目输出一个对象，prompt_text 必须非空。输出严格 JSON，结构：${schema}\n\n各页文本：\n${pageBlock}`;
+}
+
+function pageDraftFallback(pages: Array<{ id: string; pageNumber: number; text: string }>, originalName: string): Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> {
+  return pages.map((page, index) => {
+    const draft: QuestionDraft = { id: randomUUID(), pageId: page.id, label: `P${page.pageNumber}`, title: `${originalName} · 第 ${page.pageNumber} 页`, promptText: page.text.slice(0, 20_000), ordinal: index + 1, subquestions: [] };
+    return { draft, meta: {
+      sourceName: originalName,
+      primaryTopic: "未分类",
+      secondaryTopics: [],
+      questionType: "解答题",
+      methods: [],
+      proofRequired: false,
+      scoringNotes: "AI 切分失败，按原始页文本兜底归档；请在题库中修订。",
+      priority: 2,
+      tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }],
+      subquestions: [],
+    } satisfies QuestionBankMetadataInput };
+  });
 }
 
 async function autoReviewDocument(app: App, provider: ResolvedProvider, documentId: string): Promise<AutoReviewDocumentResult> {
@@ -77,7 +160,7 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
   for (const page of detail.pages) {
     const ocrText = page.ocrText.trim();
     if (!ocrText) continue;
-    const corrected = asString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText))).corrected_text, 40_000);
+    const corrected = pickString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText))), ["corrected_text", "correctedText", "text"], 40_000);
     if (corrected) {
       updatePageOcr(app, page.id, corrected);
       pagesReviewed += 1;
@@ -86,58 +169,39 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
 
   const fresh = getReviewDocument(app, documentId);
   if (!fresh) throw new Error("待审核资料读取失败。");
-  const pageTexts = fresh.pages.map(page => ({ page_number: page.pageNumber, text: page.ocrText.trim() })).filter(page => page.text);
-  if (!pageTexts.length) throw new Error(`《${fresh.originalName}》没有可切分的 OCR 文本；请先在审核工作台处理 OCR 失败的页面。`);
+  const pageTexts = fresh.pages.map(page => ({ id: page.id, pageNumber: page.pageNumber, text: page.ocrText.trim() })).filter(page => page.text);
+  if (!pageTexts.length) throw new Error(`《${fresh.originalName}》没有可切分的 OCR 文本；请先处理 OCR 失败的页面。`);
 
-  const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(pageTexts, fresh.originalName)));
-  const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : [];
-  if (!rawQuestions.length) throw new Error(`AI 未为《${fresh.originalName}》返回任何题目切分。`);
+  let pairs: Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> = [];
+  try {
+    const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(pageTexts, fresh.originalName)));
+    const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
+    pairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
+      const question = (rawQuestion ?? {}) as Record<string, unknown>;
+      const pageNumber = asOptionalNumber(question.page_number ?? question.pageNumber, 1, 10_000) ?? 1;
+      const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages[0]!;
+      return normalizeAiQuestion(rawQuestion, { pageId: page.id, labelPrefix: "", sourceName: fresh.originalName }, index);
+    }).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
+  } catch {
+    /* 切分失败时使用按页兜底 */
+  }
+  if (!pairs.length) pairs = pageDraftFallback(pageTexts, fresh.originalName);
 
-  const drafts: QuestionDraft[] = [];
-  const metas: QuestionBankMetadataInput[] = [];
-  rawQuestions.slice(0, 40).forEach((rawQuestion, index) => {
-    const question = rawQuestion as Record<string, unknown>;
-    const promptText = asString(question.prompt_text, 20_000);
-    if (!promptText) return;
-    const pageNumber = asOptionalNumber(question.page_number, 1, 10_000) ?? 1;
-    const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages[0];
-    if (!page) return;
-    const parsedSubquestions = Array.isArray(question.subquestions) ? (question.subquestions as unknown[]).slice(0, 12).map((rawSub, subIndex) => {
-      const sub = rawSub as Record<string, unknown>;
-      return { id: randomUUID(), label: asString(sub.label, 20) || `(${String.fromCharCode(97 + subIndex)})`, text: asString(sub.text, 8_000), ordinal: subIndex + 1 };
-    }).filter(sub => sub.text) : [];
-    const draft: QuestionDraft = { id: randomUUID(), pageId: page.id, label: asString(question.label, 20) || String(index + 1), title: asString(question.title, 300) || `题目 ${index + 1}`, promptText, ordinal: drafts.length + 1, subquestions: parsedSubquestions };
-    const meta = (question.metadata ?? {}) as Record<string, unknown>;
-    drafts.push(draft);
-    metas.push({
-      sourceName: asString(meta.source_name, 200) || fresh.originalName,
-      competitionYear: asOptionalNumber(meta.competition_year, 1900, 2100),
-      questionNumber: asOptionalNumber(meta.question_number, 1, 100),
-      primaryTopic: asString(meta.primary_topic, 60) || "未分类",
-      secondaryTopics: asStringArray(meta.secondary_topics, 8, 40),
-      difficulty: asOptionalNumber(meta.difficulty, 1, 5),
-      questionType: asString(meta.question_type, 60) || "解答题",
-      methods: asStringArray(meta.methods, 8, 60),
-      proofRequired: false,
-      estimatedMinutes: asOptionalNumber(meta.estimated_minutes, 1, 300),
-      maximumPoints: asOptionalNumber(meta.maximum_points, 0.5, 100),
-      scoringNotes: asString(meta.scoring_notes, 2_000),
-      priority: 2,
-      tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }],
-      subquestions: draft.subquestions.map(sub => ({ sourceSubquestionDraftId: sub.id, ordinal: sub.ordinal, label: sub.label, promptText: sub.text })),
-    });
-  });
-
-  if (!drafts.length) throw new Error(`AI 为《${fresh.originalName}》返回的切分中没有有效题面。`);
-  saveQuestionDrafts(app, documentId, drafts);
-  publishQuestionDrafts(app, documentId, drafts.map((draft, index) => ({ questionDraftId: draft.id!, metadata: metas[index] })));
-  return { sourceDocumentId: documentId, originalName: fresh.originalName, pagesReviewed, questionsPublished: drafts.length };
+  saveQuestionDrafts(app, documentId, pairs.map(pair => pair.draft));
+  const { published, failures } = publishDraftsIndividually(app, documentId, pairs);
+  if (!published.length) throw new Error(`《${fresh.originalName}》的题目全部发布失败：${failures.join("；") || "原因未知"}`);
+  return { sourceDocumentId: documentId, originalName: fresh.originalName, pagesReviewed, questionsPublished: published.length };
 }
 
 export async function autoReviewAllDocuments(app: App, storage: SecureStringStorage, platform?: NodeJS.Platform): Promise<AutoReviewSummary> {
   const provider = await getAiProviderForUse(app, storage, undefined, platform) as ResolvedProvider;
-  const pending = listReviewDocuments(app).filter(document => document.reviewStatus === "needs_review");
-  if (!pending.length) throw new Error("当前没有待审核资料；全部资料都已完成审核。");
+  const publishedDraftIds = new Set(listQuestionBank(app, { limit: 500 }).map(question => question.sourceQuestionDraftId));
+  const pending = listReviewDocuments(app).filter(document => {
+    if (document.reviewStatus === "needs_review") return true;
+    const detail = getReviewDocument(app, document.sourceDocumentId);
+    return Boolean(detail?.questions.some(draft => draft.id && !publishedDraftIds.has(draft.id)));
+  });
+  if (!pending.length) throw new Error("当前没有需要处理的资料：全部资料都已审核并且题目已发布到题库。");
   const documents: AutoReviewDocumentResult[] = [];
   const failures: string[] = [];
   for (const document of pending) {
@@ -158,7 +222,7 @@ export async function autoReviewAllDocuments(app: App, storage: SecureStringStor
 function buildVariantPrompt(original: { title: string; promptText: string; primaryTopic: string; difficulty?: number; maximumPoints?: number; subquestions: Array<{ label: string; promptText: string }> }, count: number) {
   const originalText = [`题目标题：${original.title}`, `题面：\n${original.promptText}`, original.subquestions.length ? `小问：\n${original.subquestions.map(sub => `${sub.label} ${sub.promptText}`).join("\n")}` : ""].filter(Boolean).join("\n\n");
   const schema = `{"questions":[{"title":string,"prompt_text":string,"subquestions":[{"label":string,"text":string}],"metadata":{"primary_topic":string,"question_type":string,"methods":string[],"difficulty":number,"estimated_minutes":number,"maximum_points":number,"scoring_notes":string}}]}`;
-  return `你是欧几里得数学竞赛的命题专家。下面是一道已归档的原题。请仿照它的题型、考点与难度，编写 ${count} 道全新的变式题：\n- 变式题必须考查同类数学方法，但情境、数据或推理路径要有实质变化，不能只是改数字。\n- 题面用英文书写（与 Euclid 真题一致），保留严格的数学表述；title 用简短中文概括。\n- 小问结构与原题类似；difficulty 参考原题（${original.difficulty ?? 3}/5），maximum_points 参考原题（${original.maximumPoints ?? 10} 分）。\n- 输出严格 JSON，结构：${schema}\n\n原题：\n${originalText.slice(0, 20_000)}`;
+  return `你是欧几里得数学竞赛的命题专家。下面是一道已归档的原题。请仿照它的题型、考点与难度，编写 ${count} 道全新的变式题：\n- 变式题必须考查同类数学方法，但情境、数据或推理路径要有实质变化，不能只是改数字。\n- 题面用英文书写（与 Euclid 真题一致），保留严格的数学表述；title 用简短中文概括。\n- 小问结构与原题类似；difficulty 参考原题（${original.difficulty ?? 3}/5），maximum_points 参考原题（${original.maximumPoints ?? 10} 分）。\n- 每道变式题的 prompt_text 必须非空。输出严格 JSON，结构：${schema}\n\n原题：\n${originalText.slice(0, 20_000)}`;
 }
 
 export async function generateVariantQuestions(app: App, storage: SecureStringStorage, input: VariantGenerateInput, platform?: NodeJS.Platform) {
@@ -170,41 +234,15 @@ export async function generateVariantQuestions(app: App, storage: SecureStringSt
   const rawQuestions = Array.isArray(data.questions) ? data.questions as unknown[] : [];
   if (!rawQuestions.length) throw new Error("AI 未返回可用的变式题。");
 
-  const drafts: QuestionDraft[] = [];
-  const metas: QuestionBankMetadataInput[] = [];
-  rawQuestions.slice(0, count).forEach((rawQuestion, index) => {
-    const question = rawQuestion as Record<string, unknown>;
-    const promptText = asString(question.prompt_text, 20_000);
-    if (!promptText) return;
-    const parsedSubquestions = Array.isArray(question.subquestions) ? (question.subquestions as unknown[]).slice(0, 12).map((rawSub, subIndex) => {
-      const sub = rawSub as Record<string, unknown>;
-      return { id: randomUUID(), label: asString(sub.label, 20) || `(${String.fromCharCode(97 + subIndex)})`, text: asString(sub.text, 8_000), ordinal: subIndex + 1 };
-    }).filter(sub => sub.text) : [];
-    const draft: QuestionDraft = { id: randomUUID(), pageId: original.pageId, label: `${original.label}-v${index + 1}`, title: asString(question.title, 300) || `${original.title || original.label} · 变式 ${index + 1}`, promptText, ordinal: index + 1, subquestions: parsedSubquestions };
-    const meta = (question.metadata ?? {}) as Record<string, unknown>;
-    drafts.push(draft);
-    metas.push({
-      sourceName: original.sourceName,
-      competitionYear: undefined,
-      questionNumber: undefined,
-      primaryTopic: asString(meta.primary_topic, 60) || original.primaryTopic || "未分类",
-      secondaryTopics: asStringArray(meta.secondary_topics, 8, 40),
-      difficulty: asOptionalNumber(meta.difficulty, 1, 5) ?? original.difficulty ?? undefined,
-      questionType: asString(meta.question_type, 60) || original.questionType || "解答题",
-      methods: asStringArray(meta.methods, 8, 60),
-      proofRequired: false,
-      estimatedMinutes: asOptionalNumber(meta.estimated_minutes, 1, 300),
-      maximumPoints: asOptionalNumber(meta.maximum_points, 0.5, 100) ?? original.maximumPoints ?? undefined,
-      scoringNotes: asString(meta.scoring_notes, 2_000),
-      priority: 2,
-      tags: [{ category: "来源", value: "AI 变式", source: "ai_suggestion" }, { category: "原型", value: `${original.sourceName} · ${original.label}`, source: "ai_suggestion" }],
-      subquestions: draft.subquestions.map(sub => ({ sourceSubquestionDraftId: sub.id, ordinal: sub.ordinal, label: sub.label, promptText: sub.text })),
-    });
-  });
-
-  if (!drafts.length) throw new Error("AI 返回的变式题缺少有效题面。");
-  saveQuestionDrafts(app, original.sourceDocumentId, drafts);
-  return publishQuestionDrafts(app, original.sourceDocumentId, drafts.map((draft, index) => ({ questionDraftId: draft.id!, metadata: metas[index] })));
+  const pairs = rawQuestions.slice(0, count).map((rawQuestion, index) => normalizeAiQuestion(rawQuestion, { pageId: original.pageId, labelPrefix: `${original.label}-v`, sourceName: original.sourceName, primaryTopic: original.primaryTopic, difficulty: original.difficulty ?? undefined, maximumPoints: original.maximumPoints ?? undefined, questionType: original.questionType }, index)).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
+  for (const pair of pairs) {
+    pair.meta.tags = [{ category: "来源", value: "AI 变式", source: "ai_suggestion" }, { category: "原型", value: `${original.sourceName} · ${original.label}`, source: "ai_suggestion" }];
+  }
+  if (!pairs.length) throw new Error("AI 返回的变式题缺少有效题面。");
+  saveQuestionDrafts(app, original.sourceDocumentId, pairs.map(pair => pair.draft));
+  const { published, failures } = publishDraftsIndividually(app, original.sourceDocumentId, pairs);
+  if (!published.length) throw new Error(`变式题发布失败：${failures.join("；") || "原因未知"}`);
+  return published;
 }
 
 /* ---------------------------------------------------------------- */
