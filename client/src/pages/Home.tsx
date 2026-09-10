@@ -58,6 +58,7 @@ import {
   Plus,
   Trash2,
   X,
+  Zap,
 } from "lucide-react";
 
 type View = "工作台" | "题库档案" | "审核工作台" | "训练会话" | "错题证据" | "报告与轨迹" | "AI 服务";
@@ -147,6 +148,7 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
   const [publishing, setPublishing] = useState(false);
   const [savingDrafts, setSavingDrafts] = useState(false);
   const [autoBusy, setAutoBusy] = useState(false);
+  const [autoOn, setAutoOn] = useState(() => { try { return window.localStorage.getItem("my-euclid.auto-review") !== "off"; } catch { return true; } });
 
   const runAutoReview = async () => {
     if (!window.myEuclid) return;
@@ -223,7 +225,7 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
       setDetail(next);
       setDrafts(next.questions);
       await refreshDocuments();
-      notify("题目与小问切分已确认并写入本地档案；现在可发布为可训练题目。");
+      notify("题目与小问切分已确认并写入本地档案。");
     } catch (error) {
       notify(error instanceof Error ? error.message : "题目草案保存失败。请检查每道题的题号、题面文本和来源页。");
     } finally {
@@ -249,10 +251,10 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
 
   if (!window.myEuclid) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><FileSearch size={32} /><h3>浏览器预览不访问你的本地资料。</h3><p>请通过 `pnpm dev:desktop` 启动桌面版本，导入资料后在这里审核页面、OCR 文本、题目和小问。</p></div></div>;
   if (!documents.length) return <div className="view-shell"><SectionTitle eyebrow="REVIEW WORKBENCH" title="审核工作台" /><div className="review-empty"><Archive size={32} /><h3>还没有待审核资料。</h3><p>从“工作台”或“题库档案”导入 PDF、图片或纸质答卷后，系统会在本地建立页面记录，并把它们列在这里。</p></div></div>;
-  return <div className="view-shell review-view"><SectionTitle eyebrow="LOCAL OCR · AI AUTO REVIEW" title="审核工作台" action={<span className="inline-actions"><span className="subtle-caption">AI 自动审核会校对 OCR、切分题目并直接发布；仍可手动修订</span><button className="primary-button" disabled={autoBusy || !documents.length} onClick={() => void runAutoReview()}><Sparkles size={15} /> {autoBusy ? "AI 自动审核中…" : "AI 自动审核并发布"}</button></span>} />
+  return <div className="view-shell review-view"><SectionTitle eyebrow="LOCAL OCR · AI AUTO REVIEW" title="审核工作台" action={<span className="inline-actions"><button className="icon-label" onClick={() => { const next = autoOn ? "off" : "on"; try { window.localStorage.setItem("my-euclid.auto-review", next); } catch { /* 忽略存储失败 */ } setAutoOn(next === "on"); notify(next === "on" ? "已开启：导入后自动 AI 审核并发布，全程无需点击。" : "已关闭：导入后需在此手动触发审核。"); }}><Zap size={14} /> 导入后自动审核：{autoOn ? "开" : "关"}</button><button className="primary-button" disabled={autoBusy} onClick={() => void runAutoReview()}><Sparkles size={15} /> {autoBusy ? "AI 审核中…" : "立即 AI 审核补漏"}</button></span>} />
     <div className="review-layout"><aside className="review-doc-list"><p className="eyebrow">待审核资料 · {documents.length}</p>{documents.map(document => <button key={document.sourceDocumentId} className={selectedId === document.sourceDocumentId ? "is-selected" : ""} onClick={() => setSelectedId(document.sourceDocumentId)}><FileText size={16} /><span><strong>{document.originalName}</strong><small>{document.kind === "paper_response" ? "纸质答卷" : "题目资料"} · {document.pageCount} 页</small></span><i>{document.reviewStatus === "needs_review" ? "待审" : "已审"}</i></button>)}</aside>
       <section className="review-page-panel">{loading || !detail ? <div className="review-loading">正在读取本地审核档案…</div> : <><div className="review-panel-head"><div><p className="eyebrow">PAGE REVIEW</p><h3>{detail.originalName}</h3></div><span className="status-pill">{activePage?.ocrStatus === "failed" ? "OCR 待重试" : activePage?.ocrStatus === "pending" ? "等待 OCR" : "可人工确认"}</span></div><div className="page-tabs">{detail.pages.map(page => <button key={page.id} className={pageId === page.id ? "is-selected" : ""} onClick={() => selectPage(page.id)}>P.{page.pageNumber}<small>{page.ocrStatus === "extracted" ? "已提取" : page.ocrStatus === "failed" ? "失败" : "待处理"}</small></button>)}</div><div className="original-preview"><span className="page-watermark">{activePage ? String(activePage.pageNumber).padStart(2, "0") : "—"}</span><div><p className="eyebrow">ORIGINAL PAGE LINK</p><strong>原始页码已关联</strong><small>拖拽框选的局部识别会单独留存，只有你点击采用并保存时才会进入本页人工 OCR。</small></div></div><OcrRegionSelector preview={pagePreview} regions={activePage?.regions ?? []} isBusy={recognizingRegion} onRecognize={recognizeRegion} onUseText={adoptRegionText} /><label className="ocr-editor"><span><strong>OCR 文本</strong><small>可直接修订识别错误，保存后保留为人工审核版。</small></span><textarea value={pageText} onChange={event => setPageText(event.target.value)} placeholder="本地 OCR 提取的文本会显示在这里。" /></label><div className="review-actions"><span>{activePage?.reviewStatus === "confirmed" ? <><CheckCircle2 size={15} /> 已确认本页文本</> : "修改后请保存本页文本"}</span><button className="primary-button" onClick={savePage}><Save size={15} /> 保存本页 OCR</button></div></>}</section>
-      <section className="draft-panel">{detail && <><div className="review-panel-head"><div><p className="eyebrow">QUESTION BOUNDARIES</p><h3>题目与小问切分</h3></div><button className="icon-label" onClick={addQuestion}><Plus size={15} /> 新增题目</button></div><p className="draft-note">从 OCR 文本创建题目草案，再确认写入本地档案。当前版本不会自动替换你的人工编辑。</p><div className="draft-list">{drafts.map((draft, index) => <article key={`${draft.id ?? "new"}-${index}`} className="draft-card"><div className="draft-card-head"><span className="draft-index">{String(index + 1).padStart(2, "0")}</span><input value={draft.label} onChange={event => updateDraft(index, "label", event.target.value)} aria-label="题号" /><button className="remove-draft" onClick={() => setDrafts(current => current.filter((_, draftIndex) => draftIndex !== index))} aria-label="删除题目草案"><Trash2 size={15} /></button></div><input className="draft-title" value={draft.title} onChange={event => updateDraft(index, "title", event.target.value)} aria-label="题目标题" /><textarea value={draft.promptText} onChange={event => updateDraft(index, "promptText", event.target.value)} aria-label="题目文本" /><label className="draft-page-select">来源页<select value={draft.pageId} onChange={event => updateDraft(index, "pageId", event.target.value)}>{detail.pages.map(page => <option key={page.id} value={page.id}>第 {page.pageNumber} 页</option>)}</select></label></article>)}{!drafts.length && <div className="no-drafts"><Sparkles size={17} /> 先新增一题，或等待后续自动切分建议。</div>}</div><button className="primary-button wide-button" onClick={() => { if (!drafts.length) { notify("请先点击“新增题目”，再填写题号和题面文本后确认。 "); return; } void saveDrafts(); }} disabled={savingDrafts}><Check size={15} /> {savingDrafts ? "正在确认…" : drafts.length ? "确认并写入题目档案" : "先新增题目后确认"}</button>{drafts.some(draft => draft.id) && <button className="secondary-button wide-button" onClick={() => setPublishing(value => !value)}><CheckCircle2 size={15} /> {publishing ? "收起发布元数据" : "发布为可训练题目"}</button>}{publishing && <QuestionPublishPanel sourceDocumentId={selectedId!} drafts={drafts} onClose={() => setPublishing(false)} onPublished={async () => { const next = await window.myEuclid!.review.getDocument(selectedId!); setDetail(next); setDrafts(next?.questions ?? []); }} notify={notify} />}</>}</section>
+      <section className="draft-panel">{detail && <><div className="review-panel-head"><div><p className="eyebrow">QUESTION BOUNDARIES</p><h3>题目与小问切分</h3></div><button className="icon-label" onClick={addQuestion}><Plus size={15} /> 新增题目</button></div><p className="draft-note">AI 自动审核会在导入后自动切分并发布题目；此面板用于查看与修订草案，修订后重新运行 AI 审核即可再次发布。</p><div className="draft-list">{drafts.map((draft, index) => <article key={`${draft.id ?? "new"}-${index}`} className="draft-card"><div className="draft-card-head"><span className="draft-index">{String(index + 1).padStart(2, "0")}</span><input value={draft.label} onChange={event => updateDraft(index, "label", event.target.value)} aria-label="题号" /><button className="remove-draft" onClick={() => setDrafts(current => current.filter((_, draftIndex) => draftIndex !== index))} aria-label="删除题目草案"><Trash2 size={15} /></button></div><input className="draft-title" value={draft.title} onChange={event => updateDraft(index, "title", event.target.value)} aria-label="题目标题" /><textarea value={draft.promptText} onChange={event => updateDraft(index, "promptText", event.target.value)} aria-label="题目文本" /><label className="draft-page-select">来源页<select value={draft.pageId} onChange={event => updateDraft(index, "pageId", event.target.value)}>{detail.pages.map(page => <option key={page.id} value={page.id}>第 {page.pageNumber} 页</option>)}</select></label></article>)}{!drafts.length && <div className="no-drafts"><Sparkles size={17} /> 先新增一题，或等待后续自动切分建议。</div>}</div><button className="primary-button wide-button" onClick={() => { if (!drafts.length) { notify("请先点击“新增题目”，再填写题号和题面文本后确认。 "); return; } void saveDrafts(); }} disabled={savingDrafts}><Check size={15} /> {savingDrafts ? "正在确认…" : drafts.length ? "确认并写入题目档案" : "先新增题目后确认"}</button>{drafts.some(draft => draft.id) && <button className="icon-label" onClick={() => setPublishing(value => !value)}><CheckCircle2 size={14} /> {publishing ? "收起手动发布选项" : "手动发布选项（AI 已自动发布，一般无需使用）"}</button>}{publishing && <div className="publish-drawer"><QuestionPublishPanel sourceDocumentId={selectedId!} drafts={drafts} onClose={() => setPublishing(false)} onPublished={async () => { const next = await window.myEuclid!.review.getDocument(selectedId!); setDetail(next); setDrafts(next?.questions ?? []); }} notify={notify} /></div>}</>}</section>
     </div></div>;
 }
 
@@ -425,6 +427,7 @@ export default function Home() {
   const [localUserName, setLocalUserName] = useState(() => { try { return window.localStorage.getItem("my-euclid.local-user-name")?.trim() || "我"; } catch { return "我"; } });
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
+  const [autoReviewBusy, setAutoReviewBusy] = useState(false);
   const [assessmentSessions, setAssessmentSessions] = useState<MyEuclidPracticeSession[]>([]);
   const [assessmentRecords, setAssessmentRecords] = useState<MyEuclidAssessmentRecord[]>([]);
   const [assessmentDashboard, setAssessmentDashboard] = useState<MyEuclidAssessmentDashboard | null>(null);
@@ -433,10 +436,26 @@ export default function Home() {
   const refreshReviewDocuments = async () => { if (window.myEuclid) setReviewDocuments(await window.myEuclid.review.listDocuments()); };
   const refreshAssessments = async () => { if (window.myEuclid) { const [sessions, records, dashboard] = await Promise.all([window.myEuclid.assessment.listSessions(), window.myEuclid.assessment.listRecords(), window.myEuclid.assessment.getDashboard()]); setAssessmentSessions(sessions); setAssessmentRecords(records); setAssessmentDashboard(dashboard); } };
   useEffect(() => { void refreshImportJobs(); void refreshReviewDocuments(); void refreshAssessments(); }, []);
+  const autoReviewEnabled = () => { try { return window.localStorage.getItem("my-euclid.auto-review") !== "off"; } catch { return true; } };
+  const runAutoReviewSilently = async () => {
+    if (!window.myEuclid || autoReviewBusy || !autoReviewEnabled()) return;
+    try {
+      setAutoReviewBusy(true);
+      notify("AI 自动审核已启动：正在校对 OCR、切分并发布题目，无需其他操作…");
+      const summary = await window.myEuclid.ai.autoReviewAll();
+      const detail = summary.documents.map(item => `《${item.originalName}》发布 ${item.questionsPublished} 题`).join("；");
+      notify(`AI 自动审核完成：${detail || "无新增题目"}${summary.failures.length ? `；失败 → ${summary.failures.join("；")}` : ""}`);
+      await Promise.all([refreshImportJobs(), refreshReviewDocuments()]);
+    } catch (error) {
+      notify(error instanceof Error ? error.message : "AI 自动审核失败");
+    } finally {
+      setAutoReviewBusy(false);
+    }
+  };
   const desktopImport = async (kind: MyEuclidImportKind) => {
     if (!window.myEuclid) return 0;
     const result = await window.myEuclid.archive.selectAndImport(kind);
-    if (!result.cancelled) { await refreshImportJobs(); await refreshReviewDocuments(); }
+    if (!result.cancelled) { await refreshImportJobs(); await refreshReviewDocuments(); void runAutoReviewSilently(); }
     return result.jobs.length;
   };
   const openTraining = (id = "E-2025-07b") => { setTrainingId(id); setActive("训练会话"); };
