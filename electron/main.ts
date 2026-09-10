@@ -17,13 +17,24 @@ const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 const isDevelopment = Boolean(process.env.VITE_DEV_SERVER_URL);
 
-// 统一数据目录：开发与打包版本一致使用 "My Euclid"；首次切换时从旧目录（euclid-prep-client）整体迁移。
+// 统一数据目录：开发与打包版本一致使用 "My Euclid"；旧目录（euclid-prep-client）数据更多时整体迁移。
 const canonicalUserData = path.join(app.getPath("appData"), "My Euclid");
 if (app.getPath("userData") !== canonicalUserData) {
   try {
     const legacyUserData = path.join(app.getPath("appData"), "euclid-prep-client");
-    if (!fs.existsSync(path.join(canonicalUserData, "my-euclid.sqlite")) && fs.existsSync(path.join(legacyUserData, "my-euclid.sqlite"))) {
-      fs.cpSync(legacyUserData, canonicalUserData, { recursive: true });
+    const canonicalDb = path.join(canonicalUserData, "my-euclid.sqlite");
+    const legacyDb = path.join(legacyUserData, "my-euclid.sqlite");
+    const dbSize = (file: string) => fs.existsSync(file) ? fs.statSync(file).size : 0;
+    if (dbSize(legacyDb) > dbSize(canonicalDb)) {
+      if (fs.existsSync(canonicalUserData)) {
+        for (const entry of fs.readdirSync(canonicalUserData)) {
+          if (entry !== "my-euclid.sqlite" && entry !== "archive" && entry !== "secure") fs.rmSync(path.join(canonicalUserData, entry), { recursive: true, force: true });
+        }
+      }
+      for (const entry of ["my-euclid.sqlite", "archive", "secure"]) {
+        const from = path.join(legacyUserData, entry);
+        if (fs.existsSync(from)) fs.cpSync(from, path.join(canonicalUserData, entry), { recursive: true });
+      }
     }
     app.setPath("userData", canonicalUserData);
   } catch {
