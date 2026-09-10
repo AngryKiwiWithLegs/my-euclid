@@ -156,14 +156,21 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
   const detail = getReviewDocument(app, documentId);
   if (!detail) throw new Error("待审核资料不存在。");
 
+  // OCR 校对逐页容错：单页失败只记警告；ocr_status 已是 reviewed 的页跳过（重跑秒过）。
   let pagesReviewed = 0;
+  const ocrWarnings: string[] = [];
   for (const page of detail.pages) {
+    if (page.ocrStatus === "reviewed") { pagesReviewed += 1; continue; }
     const ocrText = page.ocrText.trim();
     if (!ocrText) continue;
-    const corrected = pickString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText))), ["corrected_text", "correctedText", "text"], 40_000);
-    if (corrected) {
-      updatePageOcr(app, page.id, corrected);
-      pagesReviewed += 1;
+    try {
+      const corrected = pickString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText))), ["corrected_text", "correctedText", "text"], 40_000);
+      if (corrected) {
+        updatePageOcr(app, page.id, corrected);
+        pagesReviewed += 1;
+      }
+    } catch (error) {
+      ocrWarnings.push(`第 ${page.pageNumber} 页: ${error instanceof Error ? error.message : "校对失败"}`);
     }
   }
 
@@ -172,36 +179,47 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
   const pageTexts = fresh.pages.map(page => ({ id: page.id, pageNumber: page.pageNumber, text: page.ocrText.trim() })).filter(page => page.text);
   if (!pageTexts.length) throw new Error(`《${fresh.originalName}》没有可切分的 OCR 文本；请先处理 OCR 失败的页面。`);
 
+  // 切分分块调用：每次送 6 页，单块失败不影响其余块；全部失败再按页兜底。
   let pairs: Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> = [];
-  try {
-    const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(pageTexts, fresh.originalName)));
-    const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
-    pairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
-      const question = (rawQuestion ?? {}) as Record<string, unknown>;
-      const pageNumber = asOptionalNumber(question.page_number ?? question.pageNumber, 1, 10_000) ?? 1;
-      const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages[0]!;
-      return normalizeAiQuestion(rawQuestion, { pageId: page.id, labelPrefix: "", sourceName: fresh.originalName }, index);
-    }).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
-  } catch {
-    /* 切分失败时使用按页兜底 */
+  const splitWarnings: string[] = [];
+  const CHUNK = 6;
+  for (let start = 0; start < pageTexts.length; start += CHUNK) {
+    const chunk = pageTexts.slice(start, start + CHUNK);
+    let questionIndex = pairs.length;
+    try {
+      const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(chunk, fresh.originalName), 180_000));
+      const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
+      const chunkPairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
+        const question = (rawQuestion ?? {}) as Record<string, unknown>;
+        const pageNumber = asOptionalNumber(question.page_number ?? question.pageNumber, 1, 10_000) ?? chunk[0]!.pageNumber;
+        const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages.find(item => item.id === chunk[0]!.id) ?? fresh.pages[0]!;
+        return normalizeAiQuestion(rawQuestion, { pageId: page.id, labelPrefix: "", sourceName: fresh.originalName }, questionIndex + index);
+      }).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
+      pairs = pairs.concat(chunkPairs);
+      questionIndex = pairs.length;
+    } catch (error) {
+      splitWarnings.push(`第 ${chunk[0]!.pageNumber}-${chunk[chunk.length - 1]!.pageNumber} 页: ${error instanceof Error ? error.message : "切分失败"}`);
+      for (const page of chunk) {
+        const draft: QuestionDraft = { id: randomUUID(), pageId: page.id, label: `P${page.pageNumber}`, title: `${fresh.originalName} · 第 ${page.pageNumber} 页`, promptText: page.text.slice(0, 20_000), ordinal: pairs.length + 1, subquestions: [] };
+        pairs.push({ draft, meta: { sourceName: fresh.originalName, primaryTopic: "未分类", secondaryTopics: [], questionType: "解答题", methods: [], proofRequired: false, scoringNotes: "AI 切分失败，按原始页文本兜底归档；请在题库中修订。", priority: 2, tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }], subquestions: [] } satisfies QuestionBankMetadataInput });
+      }
+    }
   }
   if (!pairs.length) pairs = pageDraftFallback(pageTexts, fresh.originalName);
 
   saveQuestionDrafts(app, documentId, pairs.map(pair => pair.draft));
   const { published, failures } = publishDraftsIndividually(app, documentId, pairs);
-  if (!published.length) throw new Error(`《${fresh.originalName}》的题目全部发布失败：${failures.join("；") || "原因未知"}`);
+  if (!published.length) throw new Error(`《${fresh.originalName}》的题目全部发布失败：${failures.join("；") || "原因未知"}${[...ocrWarnings, ...splitWarnings].length ? `。处理中警告：${[...ocrWarnings, ...splitWarnings].join("；")}` : ""}`);
   return { sourceDocumentId: documentId, originalName: fresh.originalName, pagesReviewed, questionsPublished: published.length };
 }
 
 export async function autoReviewAllDocuments(app: App, storage: SecureStringStorage, platform?: NodeJS.Platform): Promise<AutoReviewSummary> {
   const provider = await getAiProviderForUse(app, storage, undefined, platform) as ResolvedProvider;
-  const publishedDraftIds = new Set(listQuestionBank(app, { limit: 500 }).map(question => question.sourceQuestionDraftId));
-  const pending = listReviewDocuments(app).filter(document => {
-    if (document.reviewStatus === "needs_review") return true;
-    const detail = getReviewDocument(app, document.sourceDocumentId);
-    return Boolean(detail?.questions.some(draft => draft.id && !publishedDraftIds.has(draft.id)));
-  });
-  if (!pending.length) throw new Error("当前没有需要处理的资料：全部资料都已审核并且题目已发布到题库。");
+  const bankBySource = new Map<string, number>();
+  for (const question of listQuestionBank(app, { limit: 500 })) bankBySource.set(question.sourceDocumentId, (bankBySource.get(question.sourceDocumentId) ?? 0) + 1);
+  // 待处理 = 还没有任何题目发布到题库的资料（含页面已全部确认但零发布的旧资料）。
+  const pending = listReviewDocuments(app).filter(document => (bankBySource.get(document.sourceDocumentId) ?? 0) === 0);
+  if (!pending.length) throw new Error("当前没有需要处理的资料：全部资料都已有题目发布到题库。");
   const documents: AutoReviewDocumentResult[] = [];
   const failures: string[] = [];
   for (const document of pending) {
