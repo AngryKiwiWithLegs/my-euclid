@@ -452,6 +452,7 @@ export interface AutoReviewDocumentResult {
   originalName: string;
   pagesReviewed: number;
   questionsPublished: number;
+  warnings: string[];
 }
 
 export interface AutoReviewSummary {

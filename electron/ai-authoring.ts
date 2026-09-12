@@ -134,24 +134,6 @@ function buildSplitPrompt(pages: Array<{ pageNumber: number; text: string }>, or
   return `你是欧几里得数学竞赛（Euclid Mathematics Contest）的试卷档案专家。下面是试卷《${originalName}》各页的 OCR 文本。请把整份资料切分为独立的题目（大题）：\n- 每道题包含题号 label（如 "1"、"3"）、简短中文标题 title、完整题面 prompt_text（保留英文原题文本与数学记号，不要翻译）。\n- 大题下的小问拆分为 subquestions（label 如 "(a)"，text 为该小问文本）。没有小问时留空数组。\n- metadata 给出归档建议：source_name、competition_year、question_number、primary_topic（主考点，中文，如"数列与递推"）、secondary_topics、question_type（如"解答题"）、methods、difficulty（1-5）、estimated_minutes、maximum_points（该题满分）、scoring_notes。\n- 只依据文本中真实出现的题目；不要编造。必须为每一道真实题目输出一个对象，prompt_text 必须非空。输出严格 JSON，结构：${schema}\n\n各页文本：\n${pageBlock}`;
 }
 
-function pageDraftFallback(pages: Array<{ id: string; pageNumber: number; text: string }>, originalName: string): Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> {
-  return pages.map((page, index) => {
-    const draft: QuestionDraft = { id: randomUUID(), pageId: page.id, label: `P${page.pageNumber}`, title: `${originalName} · 第 ${page.pageNumber} 页`, promptText: page.text.slice(0, 20_000), ordinal: index + 1, subquestions: [] };
-    return { draft, meta: {
-      sourceName: originalName,
-      primaryTopic: "未分类",
-      secondaryTopics: [],
-      questionType: "解答题",
-      methods: [],
-      proofRequired: false,
-      scoringNotes: "AI 切分失败，按原始页文本兜底归档；请在题库中修订。",
-      priority: 2,
-      tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }],
-      subquestions: [],
-    } satisfies QuestionBankMetadataInput };
-  });
-}
-
 async function autoReviewDocument(app: App, provider: ResolvedProvider, documentId: string): Promise<AutoReviewDocumentResult> {
   const detail = getReviewDocument(app, documentId);
   if (!detail) throw new Error("待审核资料不存在。");
@@ -179,38 +161,52 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
   const pageTexts = fresh.pages.map(page => ({ id: page.id, pageNumber: page.pageNumber, text: page.ocrText.trim() })).filter(page => page.text);
   if (!pageTexts.length) throw new Error(`《${fresh.originalName}》没有可切分的 OCR 文本；请先处理 OCR 失败的页面。`);
 
-  // 切分分块调用：每次送 6 页，单块失败不影响其余块；全部失败再按页兜底。
+  // 切分分块调用：每次送 3 页；块失败再逐页重试；单页也失败才用整页文本兜底。
   let pairs: Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> = [];
   const splitWarnings: string[] = [];
-  const CHUNK = 6;
+  const splitChunk = async (chunk: Array<{ id: string; pageNumber: number; text: string }>) => {
+    const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(chunk, fresh.originalName), 180_000));
+    const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
+    const chunkPairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
+      const question = (rawQuestion ?? {}) as Record<string, unknown>;
+      const pageNumber = asOptionalNumber(question.page_number ?? question.pageNumber, 1, 10_000) ?? chunk[0]!.pageNumber;
+      const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages.find(item => item.id === chunk[0]!.id) ?? fresh.pages[0]!;
+      return normalizeAiQuestion(rawQuestion, { pageId: page.id, labelPrefix: "", sourceName: fresh.originalName }, index);
+    }).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
+    if (!chunkPairs.length) throw new Error("AI 未返回有效题面");
+    return chunkPairs;
+  };
+  const pageFallback = (page: { id: string; pageNumber: number; text: string }): { draft: QuestionDraft; meta: QuestionBankMetadataInput } => ({
+    draft: { id: randomUUID(), pageId: page.id, label: `P${page.pageNumber}`, title: `${fresh.originalName} · 第 ${page.pageNumber} 页`, promptText: page.text.slice(0, 20_000), ordinal: 0, subquestions: [] },
+    meta: { sourceName: fresh.originalName, primaryTopic: "未分类", secondaryTopics: [], questionType: "解答题", methods: [], proofRequired: false, scoringNotes: "AI 切分失败，按原始页文本兜底归档；请在题库中修订。", priority: 2, tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }], subquestions: [] } satisfies QuestionBankMetadataInput,
+  });
+  const CHUNK = 3;
   for (let start = 0; start < pageTexts.length; start += CHUNK) {
     const chunk = pageTexts.slice(start, start + CHUNK);
-    let questionIndex = pairs.length;
     try {
-      const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(chunk, fresh.originalName), 180_000));
-      const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
-      const chunkPairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
-        const question = (rawQuestion ?? {}) as Record<string, unknown>;
-        const pageNumber = asOptionalNumber(question.page_number ?? question.pageNumber, 1, 10_000) ?? chunk[0]!.pageNumber;
-        const page = fresh.pages.find(item => item.pageNumber === pageNumber) ?? fresh.pages.find(item => item.id === chunk[0]!.id) ?? fresh.pages[0]!;
-        return normalizeAiQuestion(rawQuestion, { pageId: page.id, labelPrefix: "", sourceName: fresh.originalName }, questionIndex + index);
-      }).filter((pair): pair is { draft: QuestionDraft; meta: QuestionBankMetadataInput } => pair !== null);
-      pairs = pairs.concat(chunkPairs);
-      questionIndex = pairs.length;
-    } catch (error) {
-      splitWarnings.push(`第 ${chunk[0]!.pageNumber}-${chunk[chunk.length - 1]!.pageNumber} 页: ${error instanceof Error ? error.message : "切分失败"}`);
+      const chunkPairs = await splitChunk(chunk);
+      for (const pair of chunkPairs) { pair.draft.ordinal = pairs.length + 1; pairs.push(pair); }
+    } catch (chunkError) {
       for (const page of chunk) {
-        const draft: QuestionDraft = { id: randomUUID(), pageId: page.id, label: `P${page.pageNumber}`, title: `${fresh.originalName} · 第 ${page.pageNumber} 页`, promptText: page.text.slice(0, 20_000), ordinal: pairs.length + 1, subquestions: [] };
-        pairs.push({ draft, meta: { sourceName: fresh.originalName, primaryTopic: "未分类", secondaryTopics: [], questionType: "解答题", methods: [], proofRequired: false, scoringNotes: "AI 切分失败，按原始页文本兜底归档；请在题库中修订。", priority: 2, tags: [{ category: "来源", value: "AI 自动审核", source: "ai_suggestion" }], subquestions: [] } satisfies QuestionBankMetadataInput });
+        try {
+          const singlePairs = await splitChunk([page]);
+          for (const pair of singlePairs) { pair.draft.ordinal = pairs.length + 1; pairs.push(pair); }
+        } catch (pageError) {
+          splitWarnings.push(`第 ${page.pageNumber} 页切分失败已按页兜底（${pageError instanceof Error ? pageError.message : "原因未知"}）`);
+          const pair = pageFallback(page);
+          pair.draft.ordinal = pairs.length + 1;
+          pairs.push(pair);
+        }
       }
+      void chunkError;
     }
   }
-  if (!pairs.length) pairs = pageDraftFallback(pageTexts, fresh.originalName);
+  if (!pairs.length) pairs = pageTexts.map(pageFallback);
 
   saveQuestionDrafts(app, documentId, pairs.map(pair => pair.draft));
   const { published, failures } = publishDraftsIndividually(app, documentId, pairs);
   if (!published.length) throw new Error(`《${fresh.originalName}》的题目全部发布失败：${failures.join("；") || "原因未知"}${[...ocrWarnings, ...splitWarnings].length ? `。处理中警告：${[...ocrWarnings, ...splitWarnings].join("；")}` : ""}`);
-  return { sourceDocumentId: documentId, originalName: fresh.originalName, pagesReviewed, questionsPublished: published.length };
+  return { sourceDocumentId: documentId, originalName: fresh.originalName, pagesReviewed, questionsPublished: published.length, warnings: [...ocrWarnings, ...splitWarnings] };
 }
 
 export async function autoReviewAllDocuments(app: App, storage: SecureStringStorage, platform?: NodeJS.Platform): Promise<AutoReviewSummary> {

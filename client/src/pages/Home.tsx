@@ -443,7 +443,7 @@ export default function Home() {
       setAutoReviewBusy(true);
       notify("AI 自动审核已启动：正在校对 OCR、切分并发布题目，无需其他操作…");
       const summary = await window.myEuclid.ai.autoReviewAll();
-      const detail = summary.documents.map(item => `《${item.originalName}》发布 ${item.questionsPublished} 题`).join("；");
+      const detail = summary.documents.map(item => `《${item.originalName}》发布 ${item.questionsPublished} 题${item.warnings?.length ? `（警告：${item.warnings.join("；")}）` : ""}`).join("；");
       notify(`AI 自动审核完成：${detail || "无新增题目"}${summary.failures.length ? `；失败 → ${summary.failures.join("；")}` : ""}`);
       await Promise.all([refreshImportJobs(), refreshReviewDocuments()]);
     } catch (error) {
