@@ -2,7 +2,7 @@
  * 欧几里得档案室：新古典编辑主义工作台。
  * 题面与证据优先，使用温暖档案纸、深海军蓝和朱砂红建立克制层次。
  */
-import { ChangeEvent, useEffect, useMemo, useState } from "react";
+import { ChangeEvent, useEffect, useMemo, useRef, useState } from "react";
 import { InkCanvas } from "@/components/InkCanvas";
 import { AdaptiveTrainingWorkspace } from "@/components/AdaptiveTrainingWorkspace";
 import { MockExamWorkspace } from "@/components/MockExamWorkspace";
@@ -136,7 +136,7 @@ function LibraryView({ openImport, openTraining, importJobs, openReview }: { ope
   </div>;
 }
 
-function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: MyEuclidReviewDocumentSummary[]; notify: (message: string) => void; refreshDocuments: () => Promise<void> }) {
+function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: MyEuclidReviewDocumentSummary[]; notify: (message: string, duration?: number) => void; refreshDocuments: () => Promise<void> }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MyEuclidReviewDocumentDetail | null>(null);
   const [pageId, setPageId] = useState<string | null>(null);
@@ -154,10 +154,10 @@ function ReviewWorkbench({ documents, notify, refreshDocuments }: { documents: M
     if (!window.myEuclid) return;
     try {
       setAutoBusy(true);
-      notify("AI 自动审核已启动：正在校对 OCR、切分题目并发布到题库，可能需要几分钟，请保持网络畅通。");
+      notify("AI 自动审核已启动：正在校对 OCR、切分并发布到题库，可能需要几分钟，请保持网络畅通。", 15000);
       const summary = await window.myEuclid.ai.autoReviewAll();
-      const detail = summary.documents.map(item => `《${item.originalName}》校对 ${item.pagesReviewed} 页、发布 ${item.questionsPublished} 题`).join("；");
-      notify(`AI 自动审核完成（${summary.providerLabel} · ${summary.model}）：${detail || "无资料被处理"}${summary.failures.length ? `；未完成 → ${summary.failures.join("；")}` : ""}`);
+      const detail = summary.documents.map(item => `《${item.originalName}》校对 ${item.pagesReviewed} 页、发布 ${item.questionsPublished} 题${item.warnings?.length ? `（警告：${item.warnings.join("；")}）` : ""}`).join("；");
+      notify(`AI 自动审核完成（${summary.providerLabel} · ${summary.model}）：${detail || "无资料被处理"}${summary.failures.length ? `；未完成 → ${summary.failures.join("；")}` : ""}`, 20000);
       await refreshDocuments();
       if (selectedId) {
         const next = await window.myEuclid.review.getDocument(selectedId);
@@ -424,6 +424,7 @@ export default function Home() {
   const [backupOpen, setBackupOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const [toast, setToast] = useState<string | null>(null);
+  const toastTimer = useRef<number | undefined>(undefined);
   const [localUserName, setLocalUserName] = useState(() => { try { return window.localStorage.getItem("my-euclid.local-user-name")?.trim() || "我"; } catch { return "我"; } });
   const [importJobs, setImportJobs] = useState<MyEuclidImportJob[]>([]);
   const [reviewDocuments, setReviewDocuments] = useState<MyEuclidReviewDocumentSummary[]>([]);
@@ -431,7 +432,7 @@ export default function Home() {
   const [assessmentSessions, setAssessmentSessions] = useState<MyEuclidPracticeSession[]>([]);
   const [assessmentRecords, setAssessmentRecords] = useState<MyEuclidAssessmentRecord[]>([]);
   const [assessmentDashboard, setAssessmentDashboard] = useState<MyEuclidAssessmentDashboard | null>(null);
-  const notify = (message: string) => { setToast(message); window.setTimeout(() => setToast(null), 3000); };
+  const notify = (message: string, duration = 3500) => { setToast(message); window.clearTimeout(toastTimer.current); toastTimer.current = window.setTimeout(() => setToast(null), duration); };
   const refreshImportJobs = async () => { if (window.myEuclid) setImportJobs(await window.myEuclid.archive.listImportJobs()); };
   const refreshReviewDocuments = async () => { if (window.myEuclid) setReviewDocuments(await window.myEuclid.review.listDocuments()); };
   const refreshAssessments = async () => { if (window.myEuclid) { const [sessions, records, dashboard] = await Promise.all([window.myEuclid.assessment.listSessions(), window.myEuclid.assessment.listRecords(), window.myEuclid.assessment.getDashboard()]); setAssessmentSessions(sessions); setAssessmentRecords(records); setAssessmentDashboard(dashboard); } };
@@ -441,10 +442,10 @@ export default function Home() {
     if (!window.myEuclid || autoReviewBusy || !autoReviewEnabled()) return;
     try {
       setAutoReviewBusy(true);
-      notify("AI 自动审核已启动：正在校对 OCR、切分并发布题目，无需其他操作…");
+      notify("AI 自动审核已启动：正在校对 OCR、切分并发布题目，无需其他操作…", 15000);
       const summary = await window.myEuclid.ai.autoReviewAll();
       const detail = summary.documents.map(item => `《${item.originalName}》发布 ${item.questionsPublished} 题${item.warnings?.length ? `（警告：${item.warnings.join("；")}）` : ""}`).join("；");
-      notify(`AI 自动审核完成：${detail || "无新增题目"}${summary.failures.length ? `；失败 → ${summary.failures.join("；")}` : ""}`);
+      notify(`AI 自动审核完成：${detail || "无新增题目"}${summary.failures.length ? `；失败 → ${summary.failures.join("；")}` : ""}`, 20000);
       await Promise.all([refreshImportJobs(), refreshReviewDocuments()]);
     } catch (error) {
       notify(error instanceof Error ? error.message : "AI 自动审核失败");

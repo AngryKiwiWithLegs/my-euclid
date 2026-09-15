@@ -5,6 +5,8 @@
  * 设计约束：即使 AI 切分失败或格式不符，也按页兜底生成草案并发布，保证资料不滞留在"已审未入库"状态。
  */
 import { randomUUID } from "node:crypto";
+import fs from "node:fs";
+import path from "node:path";
 import type { App } from "electron";
 import { getAiProviderForUse, type SecureStringStorage } from "./ai-config.js";
 import { createMockExam, getQuestionBankQuestion, getReviewDocument, listQuestionBank, listReviewDocuments, publishQuestionDrafts, saveQuestionDrafts, updatePageOcr } from "./database.js";
@@ -12,27 +14,47 @@ import type { AutoReviewDocumentResult, AutoReviewSummary, MockExamComposeInput,
 
 type ResolvedProvider = { id: string; providerLabel: string; baseUrl: string; model: string; apiKey: string };
 
-async function callAi(provider: ResolvedProvider, systemPrompt: string, userPrompt: string, timeoutMs = 150_000): Promise<string> {
-  const controller = new AbortController();
-  const timer = setTimeout(() => controller.abort(), timeoutMs);
+const sleep = (ms: number) => new Promise(resolve => setTimeout(resolve, ms));
+let lastAiCallAt = 0;
+
+/** 记录自动审核事件到本地日志（不含题面内容），便于事后排查而不依赖转瞬即逝的通知。 */
+function logAutoReview(app: App, line: string) {
   try {
-    const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
-      method: "POST",
-      headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
-      body: JSON.stringify({ model: provider.model, temperature: 0, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
-      signal: controller.signal,
-    });
-    if (!response.ok) throw new Error(`服务返回 HTTP ${response.status}。`);
-    const json = await response.json() as { choices?: Array<{ message?: { content?: unknown } }> };
-    const content = typeof json.choices?.[0]?.message?.content === "string" ? json.choices[0].message.content : "";
-    if (!content.trim()) throw new Error("AI 服务未返回内容。");
-    return content;
-  } catch (error) {
-    if (error instanceof Error && error.name === "AbortError") throw new Error("AI 服务响应超时，请稍后重试或更换模型。");
-    throw new Error(error instanceof Error ? `AI 服务调用失败：${error.message}` : "AI 服务调用失败。");
-  } finally {
-    clearTimeout(timer);
+    fs.appendFileSync(path.join(app.getPath("userData"), "ai-review.log"), `[${new Date().toISOString()}] ${line}\n`);
+  } catch { /* 日志失败不影响主流程 */ }
+}
+
+async function callAi(provider: ResolvedProvider, systemPrompt: string, userPrompt: string, timeoutMs = 150_000, logContext?: { app: App; label: string }): Promise<string> {
+  let lastError: unknown;
+  for (let attempt = 0; attempt < 3; attempt++) {
+    if (attempt > 0) await sleep(5000 * attempt);
+    const gap = Date.now() - lastAiCallAt;
+    if (gap < 2500) await sleep(2500 - gap);
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), timeoutMs);
+    lastAiCallAt = Date.now();
+    try {
+      const response = await fetch(`${provider.baseUrl.replace(/\/$/, "")}/chat/completions`, {
+        method: "POST",
+        headers: { Authorization: `Bearer ${provider.apiKey}`, "Content-Type": "application/json", Accept: "application/json" },
+        body: JSON.stringify({ model: provider.model, temperature: 0, messages: [{ role: "system", content: systemPrompt }, { role: "user", content: userPrompt }], response_format: { type: "json_object" } }),
+        signal: controller.signal,
+      });
+      if (!response.ok) throw new Error(`服务返回 HTTP ${response.status}${response.status === 429 ? "（请求过于频繁被限流）" : ""}。`);
+      const json = await response.json() as { choices?: Array<{ message?: { content?: unknown } }> };
+      const content = typeof json.choices?.[0]?.message?.content === "string" ? json.choices[0].message.content : "";
+      if (!content.trim()) throw new Error("AI 服务未返回内容。");
+      return content;
+    } catch (error) {
+      lastError = error;
+      if (logContext) logAutoReview(logContext.app, `${logContext.label} 第 ${attempt + 1} 次调用失败：${error instanceof Error ? error.message : "未知错误"}`);
+    } finally {
+      clearTimeout(timer);
+    }
   }
+  const message = lastError instanceof Error ? (lastError.name === "AbortError" ? "AI 服务响应超时，请稍后重试或更换模型。" : `AI 服务调用失败：${lastError.message}`) : "AI 服务调用失败。";
+  if (logContext) logAutoReview(logContext.app, `${logContext.label} 最终失败：${message}`);
+  throw new Error(message);
 }
 
 function parseAiJson(content: string): Record<string, unknown> {
@@ -146,7 +168,7 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
     const ocrText = page.ocrText.trim();
     if (!ocrText) continue;
     try {
-      const corrected = pickString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText))), ["corrected_text", "correctedText", "text"], 40_000);
+      const corrected = pickString(parseAiJson(await callAi(provider, "You are a meticulous OCR proofreader for mathematics contest papers. Return valid JSON only.", buildOcrPrompt(ocrText), 150_000, { app, label: `${detail.originalName} OCR 第 ${page.pageNumber} 页` })), ["corrected_text", "correctedText", "text"], 40_000);
       if (corrected) {
         updatePageOcr(app, page.id, corrected);
         pagesReviewed += 1;
@@ -165,7 +187,7 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
   let pairs: Array<{ draft: QuestionDraft; meta: QuestionBankMetadataInput }> = [];
   const splitWarnings: string[] = [];
   const splitChunk = async (chunk: Array<{ id: string; pageNumber: number; text: string }>) => {
-    const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(chunk, fresh.originalName), 180_000));
+    const split = parseAiJson(await callAi(provider, "You are an expert Euclid mathematics contest paper archivist. Return valid JSON only.", buildSplitPrompt(chunk, fresh.originalName), 180_000, { app, label: `${fresh.originalName} 切分 P${chunk[0]!.pageNumber}-P${chunk[chunk.length - 1]!.pageNumber}` }));
     const rawQuestions = Array.isArray(split.questions) ? split.questions as unknown[] : (Array.isArray(split.items) ? split.items as unknown[] : []);
     const chunkPairs = rawQuestions.slice(0, 40).map((rawQuestion, index) => {
       const question = (rawQuestion ?? {}) as Record<string, unknown>;
@@ -221,11 +243,16 @@ export async function autoReviewAllDocuments(app: App, storage: SecureStringStor
   if (!pending.length) throw new Error("当前没有需要处理的资料：全部资料都已有题目发布到题库。");
   const documents: AutoReviewDocumentResult[] = [];
   const failures: string[] = [];
+  logAutoReview(app, `自动审核开始：${pending.map(document => document.originalName).join("、") || "无待处理资料"}`);
   for (const document of pending) {
     try {
-      documents.push(await autoReviewDocument(app, provider, document.sourceDocumentId));
+      const result = await autoReviewDocument(app, provider, document.sourceDocumentId);
+      documents.push(result);
+      logAutoReview(app, `《${result.originalName}》完成：校对 ${result.pagesReviewed} 页，发布 ${result.questionsPublished} 题${result.warnings.length ? `；警告 ${result.warnings.length} 条` : ""}`);
     } catch (error) {
-      failures.push(`《${document.originalName}》：${error instanceof Error ? error.message : "处理失败"}`);
+      const message = error instanceof Error ? error.message : "处理失败";
+      failures.push(`《${document.originalName}》：${message}`);
+      logAutoReview(app, `《${document.originalName}》失败：${message}`);
     }
   }
   if (!documents.length) throw new Error(`AI 自动审核未能完成任何资料。\n${failures.join("\n")}`);
