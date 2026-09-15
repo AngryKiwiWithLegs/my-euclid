@@ -212,7 +212,10 @@ async function autoReviewDocument(app: App, provider: ResolvedProvider, document
 export async function autoReviewAllDocuments(app: App, storage: SecureStringStorage, platform?: NodeJS.Platform): Promise<AutoReviewSummary> {
   const provider = await getAiProviderForUse(app, storage, undefined, platform) as ResolvedProvider;
   const bankBySource = new Map<string, number>();
-  for (const question of listQuestionBank(app, { limit: 500 })) bankBySource.set(question.sourceDocumentId, (bankBySource.get(question.sourceDocumentId) ?? 0) + 1);
+  for (const question of listQuestionBank(app, { limit: 500 })) {
+    if (question.status !== "published") continue;
+    bankBySource.set(question.sourceDocumentId, (bankBySource.get(question.sourceDocumentId) ?? 0) + 1);
+  }
   // 待处理 = 还没有任何题目发布到题库的资料（含页面已全部确认但零发布的旧资料）。
   const pending = listReviewDocuments(app).filter(document => (bankBySource.get(document.sourceDocumentId) ?? 0) === 0);
   if (!pending.length) throw new Error("当前没有需要处理的资料：全部资料都已有题目发布到题库。");
