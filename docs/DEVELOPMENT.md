@@ -2,7 +2,7 @@
 
 ## 当前阶段
 
-仓库现已包含 Electron 桌面壳、受限预加载 API、SQLite 本地数据库与真实资料归档。React 工作台中的“导入资料”和“上传纸质答卷”在 Electron 模式下会调用 macOS 原生文件选择器，将用户选择的文件复制到应用私有档案目录，并创建可持久化的审核任务。题号自动识别、摄像头、AI 判卷与 IRT 训练仍是后续功能，不会在本版本中被误表述为已完成。
+仓库现已包含 Electron 桌面壳、受限预加载 API、SQLite 本地数据库与真实资料归档。React 工作台中的“导入资料”和“上传纸质答卷”在 Electron 模式下会调用 macOS 原生文件选择器，将用户选择的文件复制到应用私有档案目录，并创建可持久化的审核任务。题号自动识别与摄像头仍是后续功能；AI 判卷（逐次授权）、AI 自动审核（默认关闭）、互动讲解与 IRT 自适应训练已实现，不会在本版本中被误表述为超出实际边界。
 
 页面级本地文本提取、图片 OCR、人工 OCR 修订以及题目/小问切分确认现已实现。扫描 PDF 会由 PDF.js 在本地逐页渲染为页面预览；审核者可拖拽框选任意区域，调用本地 Tesseract 重新识别。区域坐标、裁剪哈希、缩略图、文本与状态均作为独立审计记录保存，只有人工点击“采用文本”并保存页面后，内容才会进入正式 OCR 文本。
 
@@ -14,7 +14,7 @@
 
 错题证据与报告页现由本地评分档案驱动。评分档案包含答卷版本回链、总分、逐条评分依据、错因和模块拆分；只有确认评分才会进入累计得分率、最近得分率、模块表现、错因分布和评分轨迹。AI 判卷尚未接入：当前没有用户配置的服务或密钥，故不会生成任何伪造 AI 结论。评分与备份恢复验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-assessment-report.mjs`。
 
-“AI 服务”独立页面仅在目标 macOS 上、Electron Keychain 可用时启用。小明可自行维护多个 OpenAI 兼容 HTTPS 服务、模型和默认提供商；密钥始终加密保存在应用私有 `secure/` 目录，预加载桥只返回脱敏状态，且配置不在 SQLite 或 `.myeuclid-backup.zip` 内。当前仍不执行真实网络判卷：保存、启用或切换默认服务不会自动上传资料，真实请求需要在后续迭代中增加逐次授权和结构化响应审核。安全边界验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-config-security.mjs`。
+“AI 服务”独立页面仅在目标 macOS 上、Electron Keychain 可用时启用。用户可自行维护多个 OpenAI 兼容 HTTPS 服务、模型和默认提供商；密钥始终加密保存在应用私有 `secure/` 目录，预加载桥只返回脱敏状态，且配置不在 SQLite 或 `.myeuclid-backup.zip` 内。保存、启用或切换默认服务不会自动上传资料；真实判卷先展示发送范围并由用户逐次确认，AI 输出经结构化校验后只写入待审核草案。安全边界验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-config-security.mjs`。
 
 AI 服务页现可主动测试连接并发现提供商返回的模型标识。错题证据页可为指定题面与答卷版本生成十分钟有效的发送预览；只有点击“确认发送并生成评分草案”后才会发起一次 `chat/completions` 请求。题面文本、答卷文本和满分会在发送前可见，当前不会上传纸质附件、扫描图像或笔迹二进制数据。成功结果经本地结构化校验后写入 `origin=ai`、`status=draft` 的评分档案，仍需人工确认才计入报告。网络调用与结构化草案验证可运行：`pnpm build:electron && pnpm exec electron --runAsNode scripts/verify-ai-runtime.mjs`。
 

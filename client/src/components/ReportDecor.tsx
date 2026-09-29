@@ -11,8 +11,19 @@ export function ReportDecor({ className }: { className?: string }) {
       preserveAspectRatio="xMidYMid slice"
     >
       <defs>
-        <pattern id="report-grid" width="12" height="12" patternUnits="userSpaceOnUse">
-          <path d="M 12 0 L 0 0 0 12" fill="none" stroke="currentColor" stroke-width="0.5" opacity="0.45" />
+        <pattern
+          id="report-grid"
+          width="12"
+          height="12"
+          patternUnits="userSpaceOnUse"
+        >
+          <path
+            d="M 12 0 L 0 0 0 12"
+            fill="none"
+            stroke="currentColor"
+            stroke-width="0.5"
+            opacity="0.45"
+          />
         </pattern>
       </defs>
       <rect width="240" height="220" fill="url(#report-grid)" />

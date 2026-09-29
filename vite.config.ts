@@ -1,14 +1,27 @@
 import { jsxLocPlugin } from "@builder.io/vite-plugin-jsx-loc";
-import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
 import path from "node:path";
 import { defineConfig } from "vite";
 
-const plugins = [react(), tailwindcss(), jsxLocPlugin()];
+const plugins = [react(), jsxLocPlugin()];
+
+// 生产构建注入 CSP：开发服务器（HMR）不受影响。
+const cspForElectronBuild = () => ({
+  name: "electron-csp",
+  apply: "build" as const,
+  transformIndexHtml(html: string) {
+    const policy =
+      "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self'";
+    return html.replace(
+      "<head>",
+      `<head>\n    <meta http-equiv="Content-Security-Policy" content="${policy}" />`
+    );
+  },
+});
 
 export default defineConfig({
   base: process.env.VITE_ELECTRON_FILE_PROTOCOL === "1" ? "./" : "/",
-  plugins,
+  plugins: [...plugins, cspForElectronBuild()],
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "client", "src"),

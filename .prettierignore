@@ -1,5 +1,9 @@
 dist
+release
 node_modules
 .git
-*.min.js
-*.min.css
+docs
+*.md
+*.woff2
+client/src/assets/fonts
+pnpm-lock.yaml

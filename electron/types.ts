@@ -46,7 +46,12 @@ export interface ReviewPage {
   regions: OcrRegion[];
 }
 
-export interface NormalizedRect { x: number; y: number; width: number; height: number; }
+export interface NormalizedRect {
+  x: number;
+  y: number;
+  width: number;
+  height: number;
+}
 
 export interface OcrRegion {
   id: string;
@@ -93,7 +98,12 @@ export interface ReviewDocumentDetail extends ReviewDocumentSummary {
 export type QuestionBankStatus = "published" | "archived";
 export type QuestionTagSource = "manual" | "ai_suggestion";
 
-export interface QuestionTag { id: string; category: string; value: string; source: QuestionTagSource; }
+export interface QuestionTag {
+  id: string;
+  category: string;
+  value: string;
+  source: QuestionTagSource;
+}
 
 export interface QuestionBankSubquestion {
   id: string;
@@ -149,12 +159,28 @@ export interface QuestionBankMetadataInput {
   scoringNotes: string;
   priority: number;
   tags: Array<{ category: string; value: string; source?: QuestionTagSource }>;
-  subquestions: Array<Omit<QuestionBankSubquestion, "id" | "sourceSubquestionDraftId"> & { sourceSubquestionDraftId?: string }>;
+  subquestions: Array<
+    Omit<QuestionBankSubquestion, "id" | "sourceSubquestionDraftId"> & {
+      sourceSubquestionDraftId?: string;
+    }
+  >;
 }
 
-export interface PublishQuestionDraftInput { questionDraftId: string; metadata: QuestionBankMetadataInput; }
+export interface PublishQuestionDraftInput {
+  questionDraftId: string;
+  metadata: QuestionBankMetadataInput;
+}
 
-export interface QuestionBankFilter { query?: string; sourceName?: string; competitionYear?: number; primaryTopic?: string; difficulty?: number; questionType?: string; proofRequired?: boolean; limit?: number; }
+export interface QuestionBankFilter {
+  query?: string;
+  sourceName?: string;
+  competitionYear?: number;
+  primaryTopic?: string;
+  difficulty?: number;
+  questionType?: string;
+  proofRequired?: boolean;
+  limit?: number;
+}
 
 export type MockExamStatus = "draft" | "active" | "submitted" | "archived";
 export interface MockExamItem {
@@ -171,26 +197,141 @@ export interface MockExamItem {
   responseCount: number;
   submittedResponseCount: number;
 }
-export interface MockExamSummary { id: string; title: string; status: MockExamStatus; durationSeconds: number; questionCount: number; startedAt?: string; submittedAt?: string; createdAt: string; updatedAt: string; }
-export interface MockExamDetail extends MockExamSummary { items: MockExamItem[]; }
-export interface CreateMockExamInput { title: string; questionIds: string[]; durationSeconds?: number; }
+export interface MockExamSummary {
+  id: string;
+  title: string;
+  status: MockExamStatus;
+  durationSeconds: number;
+  questionCount: number;
+  startedAt?: string;
+  submittedAt?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface MockExamDetail extends MockExamSummary {
+  items: MockExamItem[];
+}
+export interface CreateMockExamInput {
+  title: string;
+  questionIds: string[];
+  durationSeconds?: number;
+}
 
-export interface KnowledgeNode { id: string; name: string; description: string; createdAt: string; updatedAt: string; }
-export interface KnowledgeEdge { id: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number; }
-export interface IrtItemParameter { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; updatedAt: string; }
-export interface QuestionKnowledgeMapping { questionId: string; nodeId: string; weight: number; }
-export interface AbilitySnapshot { nodeId: string; theta: number; standardError: number; evidenceCount: number; updatedAt: string; }
-export interface AdaptiveRecommendation { question: QuestionBankQuestion; reason: "upstream" | "weakness" | "stretch" | "review"; predictedProbability: number; targetNodeId: string; targetNodeName: string; }
-export interface AdaptiveTrainingProfile { nodes: KnowledgeNode[]; edges: KnowledgeEdge[]; mappings: QuestionKnowledgeMapping[]; parameters: IrtItemParameter[]; abilities: AbilitySnapshot[]; recommendations: AdaptiveRecommendation[]; notice: string; }
-export interface SaveKnowledgeNodeInput { id?: string; name: string; description: string; }
-export interface SaveKnowledgeEdgeInput { id?: string; prerequisiteNodeId: string; dependentNodeId: string; strength: number; }
-export interface SaveIrtItemParameterInput { questionId: string; difficulty: number; discrimination: number; guessing: number; source: "manual" | "heuristic"; nodeIds: string[]; }
+export interface KnowledgeNode {
+  id: string;
+  name: string;
+  description: string;
+  createdAt: string;
+  updatedAt: string;
+}
+export interface KnowledgeEdge {
+  id: string;
+  prerequisiteNodeId: string;
+  dependentNodeId: string;
+  strength: number;
+}
+export interface IrtItemParameter {
+  questionId: string;
+  difficulty: number;
+  discrimination: number;
+  guessing: number;
+  source: "manual" | "heuristic";
+  updatedAt: string;
+}
+export interface QuestionKnowledgeMapping {
+  questionId: string;
+  nodeId: string;
+  weight: number;
+}
+export interface AbilitySnapshot {
+  nodeId: string;
+  theta: number;
+  standardError: number;
+  evidenceCount: number;
+  updatedAt: string;
+}
+export interface AdaptiveRecommendation {
+  question: QuestionBankQuestion;
+  reason: "upstream" | "weakness" | "stretch" | "review";
+  predictedProbability: number;
+  targetNodeId: string;
+  targetNodeName: string;
+}
+export interface AdaptiveTrainingProfile {
+  nodes: KnowledgeNode[];
+  edges: KnowledgeEdge[];
+  mappings: QuestionKnowledgeMapping[];
+  parameters: IrtItemParameter[];
+  abilities: AbilitySnapshot[];
+  recommendations: AdaptiveRecommendation[];
+  notice: string;
+}
+export interface SaveKnowledgeNodeInput {
+  id?: string;
+  name: string;
+  description: string;
+}
+export interface SaveKnowledgeEdgeInput {
+  id?: string;
+  prerequisiteNodeId: string;
+  dependentNodeId: string;
+  strength: number;
+}
+export interface SaveIrtItemParameterInput {
+  questionId: string;
+  difficulty: number;
+  discrimination: number;
+  guessing: number;
+  source: "manual" | "heuristic";
+  nodeIds: string[];
+}
 
-export interface TutorMethod { name: string; outline: string; keyIdea: string; pitfalls: string; }
-export interface TutorPlan { prerequisiteKnowledge: string[]; entryPoint: string; thoughtSource: string; methods: TutorMethod[]; similarType: string; variants: string[]; socraticQuestion: string; }
-export interface TutorSession { id: string; questionId: string; providerId: string; status: "active" | "archived"; questionText: string; answerText: string; plan?: TutorPlan; createdAt: string; updatedAt: string; messages: Array<{ id: string; role: "user" | "assistant"; content: string; createdAt: string; }>; }
-export interface TutorPrepareInput { questionId: string; responseId?: string; }
-export interface TutorPreview { authorizationToken: string; expiresAt: string; providerLabel: string; model: string; questionId: string; questionText: string; answerText: string; disclosure: string[]; }
+export interface TutorMethod {
+  name: string;
+  outline: string;
+  keyIdea: string;
+  pitfalls: string;
+}
+export interface TutorPlan {
+  prerequisiteKnowledge: string[];
+  entryPoint: string;
+  thoughtSource: string;
+  methods: TutorMethod[];
+  similarType: string;
+  variants: string[];
+  socraticQuestion: string;
+}
+export interface TutorSession {
+  id: string;
+  questionId: string;
+  providerId: string;
+  status: "active" | "archived";
+  questionText: string;
+  answerText: string;
+  plan?: TutorPlan;
+  createdAt: string;
+  updatedAt: string;
+  messages: Array<{
+    id: string;
+    role: "user" | "assistant";
+    content: string;
+    createdAt: string;
+  }>;
+}
+export interface TutorPrepareInput {
+  questionId: string;
+  responseId?: string;
+}
+export interface TutorPreview {
+  authorizationToken: string;
+  expiresAt: string;
+  providerLabel: string;
+  model: string;
+  questionId: string;
+  questionText: string;
+  answerText: string;
+  disclosure: string[];
+}
 
 export type AnswerFormat = "keyboard" | "handwritten" | "paper_attachment";
 export type PracticeSessionStatus = "active" | "submitted" | "archived";
@@ -234,7 +375,12 @@ export interface SavePracticeResponseInput {
   status: "draft" | "submitted";
 }
 
-export interface InkPoint { x: number; y: number; pressure: number; t: number; }
+export interface InkPoint {
+  x: number;
+  y: number;
+  pressure: number;
+  t: number;
+}
 
 export interface InkStrokeInput {
   id?: string;
@@ -264,10 +410,26 @@ export interface SaveInkResponseInput {
   layers: InkLayerInput[];
 }
 
-export interface InkStroke extends InkStrokeInput { id: string; }
-export interface InkLayer extends Omit<InkLayerInput, "strokes" | "id"> { id: string; strokes: InkStroke[]; }
-export interface InkResponseDetail { responseId: string; sessionId: string; canvasWidth: number; canvasHeight: number; previewSvg: string; createdAt: string; layers: InkLayer[]; }
-export interface InkSaveResult { session: PracticeSessionDetail; ink: InkResponseDetail; }
+export interface InkStroke extends InkStrokeInput {
+  id: string;
+}
+export interface InkLayer extends Omit<InkLayerInput, "strokes" | "id"> {
+  id: string;
+  strokes: InkStroke[];
+}
+export interface InkResponseDetail {
+  responseId: string;
+  sessionId: string;
+  canvasWidth: number;
+  canvasHeight: number;
+  previewSvg: string;
+  createdAt: string;
+  layers: InkLayer[];
+}
+export interface InkSaveResult {
+  session: PracticeSessionDetail;
+  ink: InkResponseDetail;
+}
 
 export interface BackupSummary {
   backupId: string;
@@ -278,13 +440,27 @@ export interface BackupSummary {
   fileCount: number;
 }
 
-export interface BackupSelection extends BackupSummary { token: string; fileName: string; }
+export interface BackupSelection extends BackupSummary {
+  token: string;
+  fileName: string;
+}
 
-export interface BackupExportResult extends BackupSummary { outputName: string; cancelled?: boolean; }
+export interface BackupExportResult extends BackupSummary {
+  outputName: string;
+  cancelled?: boolean;
+}
 
 export type AssessmentOrigin = "manual" | "ai";
 export type AssessmentStatus = "draft" | "confirmed";
-export type MistakeCategory = "conceptual" | "method" | "reasoning" | "completeness" | "calculation" | "communication" | "time" | "other";
+export type MistakeCategory =
+  | "conceptual"
+  | "method"
+  | "reasoning"
+  | "completeness"
+  | "calculation"
+  | "communication"
+  | "time"
+  | "other";
 export type MistakeSeverity = "minor" | "moderate" | "major";
 
 export interface AssessmentEvidenceInput {
@@ -328,9 +504,15 @@ export interface SaveAssessmentInput {
   modules: AssessmentModuleInput[];
 }
 
-export interface AssessmentEvidence extends AssessmentEvidenceInput { id: string; }
-export interface AssessmentMistake extends AssessmentMistakeInput { id: string; }
-export interface AssessmentModule extends AssessmentModuleInput { id: string; }
+export interface AssessmentEvidence extends AssessmentEvidenceInput {
+  id: string;
+}
+export interface AssessmentMistake extends AssessmentMistakeInput {
+  id: string;
+}
+export interface AssessmentModule extends AssessmentModuleInput {
+  id: string;
+}
 
 export interface AssessmentRecordSummary {
   id: string;
@@ -363,8 +545,17 @@ export interface AssessmentDashboard {
   weightedScoreRate: number | null;
   latestScoreRate: number | null;
   recentAssessments: AssessmentRecordSummary[];
-  history: Array<{ assessmentId: string; createdAt: string; scoreRate: number }>;
-  modules: Array<{ module: string; awardedPoints: number; maximumPoints: number; scoreRate: number }>;
+  history: Array<{
+    assessmentId: string;
+    createdAt: string;
+    scoreRate: number;
+  }>;
+  modules: Array<{
+    module: string;
+    awardedPoints: number;
+    maximumPoints: number;
+    scoreRate: number;
+  }>;
   mistakes: Array<{ category: MistakeCategory; count: number }>;
   aiStatus: "not_configured";
 }

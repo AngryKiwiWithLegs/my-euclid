@@ -101,7 +101,10 @@ MY_EUCLID_USER_DATA="$HOME/Library/Application Support/My Euclid" \
 | `assessment` | `listSessions`, `listRecords`, `getRecord`, `getDashboard`, `saveManual` | 评分记录、证据、报告和累计统计 |
 | `ai` | Provider registry/save/default/remove、`testProvider`、`listModels` | 配置和连接测试 |
 | `ai` | `prepareAssessment`, `runAssessment` | 显示评分发送预览后，凭一次性授权令牌运行 AI 草案评分 |
-| `ai` | `prepareTutor`, `runTutor`, `askTutor` | Tutor 预览、首次运行、会话追问 |
+| `ai` | `prepareTutor`, `runTutor`, `askTutor` | Tutor 发送范围预览（本地）、用户确认后首次运行、会话追问 |
+| `ai` | `autoReviewAll` | 批量 OCR 校对 + 切分 + 发布（导入后自动触发与否取决于用户开关，默认关闭） |
+| `ai` | `generateVariants` | 按已有题目生成 AI 变式题并发布 |
+| `ai` | `composeMockExam` | AI 组卷（题库不足时本地均衡挑选兜底） |
 | `practice` | `saveResponse`, `selectPaperAttachments`, `saveInkResponse`, `getInkResponse` | 三种作答形态和版本化响应 |
 | `backup` | `export`, `selectForRestore`, `restore(token)` | 本地备份和恢复 |
 | `app` | `openExternal(url)` | 受限外部链接打开 |
@@ -114,7 +117,7 @@ Provider 使用 OpenAI-compatible HTTPS `chat/completions` 形式。配置字段
 
 评分流程必须遵循：选择 session/response → `prepareAssessment` → 展示题面、答卷、满分、附件和 disclosure → 用户明确确认 → `runAssessment(authorizationToken)` → 校验结构化响应 → 写入 `origin="ai"`, `status="draft"` → 用户人工确认 → 才进入报告。令牌短期有效，当前预览显示十分钟期限。不得把 AI draft 当成 confirmed score。
 
-Tutor 流程同样先准备并展示发送范围，再由用户授权。Tutor 计划应至少保留三种方法，并支持会话追问；不要在没有真实请求证据时声称“AI 已经解答了某道用户题目”。
+Tutor 流程同样先在本地准备发送范围预览（`prepareTutor` 不联网），由用户在面板中确认后才 `runTutor`；追问（`askTutor`）由用户逐次发送，天然逐次授权。Tutor 计划应至少保留三种方法，并支持会话追问；不要在没有真实请求证据时声称“AI 已经解答了某道用户题目”。
 
 ## 数据与迁移
 
@@ -124,7 +127,7 @@ Tutor 流程同样先准备并展示发送范围，再由用户授权。Tutor �
 <app.getPath("userData")>/my-euclid.sqlite
 ```
 
-`getDatabase(app)` 现在会先创建父目录，再打开 SQLite；所有迁移集中在 `electron/database.ts`，不要单独创建第二套 schema。当前数据模型至少覆盖：`source_documents`、`document_pages`、`import_jobs`、`question_drafts`、`subquestion_drafts`、`question_bank`、`practice_sessions`、`practice_responses`、`response_attachments`、`ink_layers`、`ink_strokes`、`assessment_records`、`assessment_evidence`、`assessment_mistakes`、`assessment_modules`、`ai_run_audits`、知识节点/边和 IRT 参数。
+`getDatabase(app)` 现在会先创建父目录，再打开 SQLite；所有迁移集中在 `electron/db/connection.ts`（`database.ts` 为按域拆分后的门面 barrel），不要单独创建第二套 schema。当前数据模型至少覆盖：`source_documents`、`document_pages`、`import_jobs`、`question_drafts`、`subquestion_drafts`、`question_bank`、`practice_sessions`、`practice_responses`、`response_attachments`、`ink_layers`、`ink_strokes`、`assessment_records`、`assessment_evidence`、`assessment_mistakes`、`assessment_modules`、`ai_run_audits`、知识节点/边和 IRT 参数。
 
 修改 schema 时先写迁移逻辑，再用临时目录回归；不要对用户库做 destructive migration。备份恢复必须保留 hash 清单和自动恢复点。
 

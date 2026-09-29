@@ -1,8 +1,383 @@
 /* 欧几里得档案室：全真模考采用计时档案和题号纵列，突出克制、连续的纸本考试节奏。 */
-.mock-exam-view,.mock-exam-builder{max-width:1180px}.mock-exam-head{border:1px solid #c8d8d3;background:#f3f8f6;padding:13px;display:flex;align-items:center;gap:14px}.mock-exam-head>.text-action{margin:0;font-size:10px}.mock-exam-head>div:nth-child(2){flex:1}.mock-exam-head h3,.mock-builder-head h4,.mock-create-card h4{font-family:"DM Serif Display","Noto Serif SC",serif;font-size:22px;font-weight:400;color:var(--navy);margin:3px 0}.mock-exam-head small{font-size:10px;color:var(--muted)}.mock-exam-head .primary-button{margin:0}.mock-clock{border:1px solid #9bbdac;background:#fffefa;min-width:100px;text-align:center;padding:6px;display:grid;grid-template-columns:auto 1fr;gap:2px;align-items:center;color:#356451}.mock-clock strong{font-family:"IBM Plex Mono",monospace;font-size:15px}.mock-clock span{grid-column:1/-1;font-size:8px;color:var(--muted)}.mock-clock.is-expired{border-color:#d7aaa2;color:var(--red)}.mock-exam-layout{display:grid;grid-template-columns:145px 1fr;min-height:560px;margin-top:15px;border:1px solid var(--line)}.mock-question-nav{background:#f5f0e5;border-right:1px solid var(--line);padding:8px}.mock-question-nav button{border:0;border-bottom:1px solid #ddd5c7;background:transparent;width:100%;display:grid;grid-template-columns:26px 1fr;gap:5px;text-align:left;padding:9px 3px;color:var(--ink);cursor:pointer}.mock-question-nav button.is-selected{background:#e4efed;box-shadow:inset 2px 0 #356451}.mock-question-nav strong{font-family:"DM Serif Display","Noto Serif SC",serif;font-size:18px}.mock-question-nav span{justify-self:end;color:#356451}.mock-question-nav small{grid-column:1/-1;color:var(--muted);font-size:9px}.mock-problem{padding:25px;max-width:900px}.mock-problem-meta{display:flex;gap:6px;flex-wrap:wrap}.mock-problem-meta span{font-size:9px;border:1px solid #c8d8d3;background:#f3f8f6;padding:4px 6px;color:#47636a}.mock-problem h2{font-family:"DM Serif Display","Noto Serif SC",serif;font-size:29px;font-weight:400;color:var(--navy);margin:16px 0 9px}.mock-prompt{white-space:pre-wrap;font-family:"Noto Serif SC",serif;font-size:15px;line-height:1.85}.mock-answer{border-top:1px solid var(--line);padding-top:15px;margin-top:18px}.mock-answer label span{display:block;font-size:10px;color:#47636a;margin-bottom:5px}.mock-answer textarea{width:100%;box-sizing:border-box;min-height:190px;border:1px solid #bdc9c5;background:#fffefa;padding:11px;font:13px/1.7 "Noto Serif SC",serif;color:var(--ink);resize:vertical}.mock-answer>div{display:flex;align-items:center;gap:8px;margin-top:8px}.mock-answer small{margin-right:auto;font-size:9px;color:var(--muted)}.mock-answer button{margin:0;font-size:10px}.mock-intro{display:flex;gap:10px;border:1px solid #c8d8d3;background:#f3f8f6;padding:13px;margin:14px 0;color:#47636a}.mock-intro strong{font-size:12px}.mock-intro p{font-size:10px;line-height:1.65;margin:3px 0 0}.mock-builder-grid{display:grid;grid-template-columns:1fr 290px;gap:14px}.mock-builder-grid>section,.mock-create-card,.mock-history{border:1px solid var(--line);background:#fffdf8;padding:14px}.mock-builder-head{display:flex;justify-content:space-between;align-items:end;margin-bottom:9px}.mock-builder-head strong{font-family:"IBM Plex Mono",monospace;color:#356451}.mock-question-picker{max-height:520px;overflow:auto}.mock-question-picker label{display:flex;gap:8px;border-top:1px solid #ebe4d8;padding:9px;cursor:pointer}.mock-question-picker label.is-selected{background:#eaf3f1}.mock-question-picker input{accent-color:#356451;margin-top:3px}.mock-question-picker strong,.mock-question-picker span,.mock-question-picker small{display:block}.mock-question-picker strong{font-size:11px}.mock-question-picker span{font-family:"Noto Serif SC",serif;font-size:12px;color:var(--navy);margin:2px 0}.mock-question-picker small{font-size:9px;color:var(--muted)}.mock-create-card label{font-size:10px;color:var(--muted);display:block;margin:12px 0}.mock-create-card input{box-sizing:border-box;width:100%;border:1px solid #c4d0cc;background:#fffefa;padding:8px;margin-top:4px;font:11px inherit;color:var(--ink)}.mock-create-card dl{border-top:1px solid #e3ddd1;margin:10px 0}.mock-create-card dl>div{display:flex;justify-content:space-between;border-bottom:1px solid #e3ddd1;padding:7px 0;font-size:10px}.mock-create-card dt{color:var(--muted)}.mock-create-card dd{margin:0;color:var(--ink)}.mock-create-card small{font-size:9px;color:var(--muted);line-height:1.6;display:block;margin-top:8px}.mock-history{margin-top:15px}.mock-history button{width:100%;display:flex;gap:8px;align-items:center;text-align:left;border:0;border-top:1px solid #e7e0d4;background:transparent;padding:9px;color:var(--ink);cursor:pointer}.mock-history span{color:#356451}.mock-history strong,.mock-history small{display:block}.mock-history strong{font-size:11px}.mock-history small,.mock-history em{font-size:9px;color:var(--muted);font-style:normal}.mock-history em{margin-left:auto}@media(max-width:760px){.mock-exam-head{align-items:start;flex-wrap:wrap}.mock-exam-layout,.mock-builder-grid{grid-template-columns:1fr}.mock-question-nav{border-right:0;border-bottom:1px solid var(--line);display:flex;overflow:auto}.mock-question-nav button{min-width:72px;border:0}.mock-clock{margin-left:auto}.mock-problem{padding:16px}.mock-answer>div{flex-wrap:wrap}.mock-answer small{width:100%}}
+.mock-exam-view,
+.mock-exam-builder {
+  max-width: 1180px;
+}
+.mock-exam-head {
+  border: 1px solid #c8d8d3;
+  background: #f3f8f6;
+  padding: 13px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+.mock-exam-head > .text-action {
+  margin: 0;
+  font-size: 10px;
+}
+.mock-exam-head > div:nth-child(2) {
+  flex: 1;
+}
+.mock-exam-head h3,
+.mock-builder-head h4,
+.mock-create-card h4 {
+  font-family: "DM Serif Display", "Noto Serif SC", serif;
+  font-size: 22px;
+  font-weight: 400;
+  color: var(--navy);
+  margin: 3px 0;
+}
+.mock-exam-head small {
+  font-size: 10px;
+  color: var(--muted);
+}
+.mock-exam-head .primary-button {
+  margin: 0;
+}
+.mock-clock {
+  border: 1px solid #9bbdac;
+  background: #fffefa;
+  min-width: 100px;
+  text-align: center;
+  padding: 6px;
+  display: grid;
+  grid-template-columns: auto 1fr;
+  gap: 2px;
+  align-items: center;
+  color: #356451;
+}
+.mock-clock strong {
+  font-family: "IBM Plex Mono", monospace;
+  font-size: 15px;
+}
+.mock-clock span {
+  grid-column: 1/-1;
+  font-size: 8px;
+  color: var(--muted);
+}
+.mock-clock.is-expired {
+  border-color: #d7aaa2;
+  color: var(--red);
+}
+.mock-exam-layout {
+  display: grid;
+  grid-template-columns: 145px 1fr;
+  min-height: 560px;
+  margin-top: 15px;
+  border: 1px solid var(--line);
+}
+.mock-question-nav {
+  background: #f5f0e5;
+  border-right: 1px solid var(--line);
+  padding: 8px;
+}
+.mock-question-nav button {
+  border: 0;
+  border-bottom: 1px solid #ddd5c7;
+  background: transparent;
+  width: 100%;
+  display: grid;
+  grid-template-columns: 26px 1fr;
+  gap: 5px;
+  text-align: left;
+  padding: 9px 3px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mock-question-nav button.is-selected {
+  background: #e4efed;
+  box-shadow: inset 2px 0 #356451;
+}
+.mock-question-nav strong {
+  font-family: "DM Serif Display", "Noto Serif SC", serif;
+  font-size: 18px;
+}
+.mock-question-nav span {
+  justify-self: end;
+  color: #356451;
+}
+.mock-question-nav small {
+  grid-column: 1/-1;
+  color: var(--muted);
+  font-size: 9px;
+}
+.mock-problem {
+  padding: 25px;
+  max-width: 900px;
+}
+.mock-problem-meta {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+.mock-problem-meta span {
+  font-size: 9px;
+  border: 1px solid #c8d8d3;
+  background: #f3f8f6;
+  padding: 4px 6px;
+  color: #47636a;
+}
+.mock-problem h2 {
+  font-family: "DM Serif Display", "Noto Serif SC", serif;
+  font-size: 29px;
+  font-weight: 400;
+  color: var(--navy);
+  margin: 16px 0 9px;
+}
+.mock-prompt {
+  white-space: pre-wrap;
+  font-family: "Noto Serif SC", serif;
+  font-size: 15px;
+  line-height: 1.85;
+}
+.mock-answer {
+  border-top: 1px solid var(--line);
+  padding-top: 15px;
+  margin-top: 18px;
+}
+.mock-answer label span {
+  display: block;
+  font-size: 10px;
+  color: #47636a;
+  margin-bottom: 5px;
+}
+.mock-answer textarea {
+  width: 100%;
+  box-sizing: border-box;
+  min-height: 190px;
+  border: 1px solid #bdc9c5;
+  background: #fffefa;
+  padding: 11px;
+  font:
+    13px/1.7 "Noto Serif SC",
+    serif;
+  color: var(--ink);
+  resize: vertical;
+}
+.mock-answer > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-top: 8px;
+}
+.mock-answer small {
+  margin-right: auto;
+  font-size: 9px;
+  color: var(--muted);
+}
+.mock-answer button {
+  margin: 0;
+  font-size: 10px;
+}
+.mock-intro {
+  display: flex;
+  gap: 10px;
+  border: 1px solid #c8d8d3;
+  background: #f3f8f6;
+  padding: 13px;
+  margin: 14px 0;
+  color: #47636a;
+}
+.mock-intro strong {
+  font-size: 12px;
+}
+.mock-intro p {
+  font-size: 10px;
+  line-height: 1.65;
+  margin: 3px 0 0;
+}
+.mock-builder-grid {
+  display: grid;
+  grid-template-columns: 1fr 290px;
+  gap: 14px;
+}
+.mock-builder-grid > section,
+.mock-create-card,
+.mock-history {
+  border: 1px solid var(--line);
+  background: #fffdf8;
+  padding: 14px;
+}
+.mock-builder-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: end;
+  margin-bottom: 9px;
+}
+.mock-builder-head strong {
+  font-family: "IBM Plex Mono", monospace;
+  color: #356451;
+}
+.mock-question-picker {
+  max-height: 520px;
+  overflow: auto;
+}
+.mock-question-picker label {
+  display: flex;
+  gap: 8px;
+  border-top: 1px solid #ebe4d8;
+  padding: 9px;
+  cursor: pointer;
+}
+.mock-question-picker label.is-selected {
+  background: #eaf3f1;
+}
+.mock-question-picker input {
+  accent-color: #356451;
+  margin-top: 3px;
+}
+.mock-question-picker strong,
+.mock-question-picker span,
+.mock-question-picker small {
+  display: block;
+}
+.mock-question-picker strong {
+  font-size: 11px;
+}
+.mock-question-picker span {
+  font-family: "Noto Serif SC", serif;
+  font-size: 12px;
+  color: var(--navy);
+  margin: 2px 0;
+}
+.mock-question-picker small {
+  font-size: 9px;
+  color: var(--muted);
+}
+.mock-create-card label {
+  font-size: 10px;
+  color: var(--muted);
+  display: block;
+  margin: 12px 0;
+}
+.mock-create-card input {
+  box-sizing: border-box;
+  width: 100%;
+  border: 1px solid #c4d0cc;
+  background: #fffefa;
+  padding: 8px;
+  margin-top: 4px;
+  font: 11px inherit;
+  color: var(--ink);
+}
+.mock-create-card dl {
+  border-top: 1px solid #e3ddd1;
+  margin: 10px 0;
+}
+.mock-create-card dl > div {
+  display: flex;
+  justify-content: space-between;
+  border-bottom: 1px solid #e3ddd1;
+  padding: 7px 0;
+  font-size: 10px;
+}
+.mock-create-card dt {
+  color: var(--muted);
+}
+.mock-create-card dd {
+  margin: 0;
+  color: var(--ink);
+}
+.mock-create-card small {
+  font-size: 9px;
+  color: var(--muted);
+  line-height: 1.6;
+  display: block;
+  margin-top: 8px;
+}
+.mock-history {
+  margin-top: 15px;
+}
+.mock-history button {
+  width: 100%;
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  text-align: left;
+  border: 0;
+  border-top: 1px solid #e7e0d4;
+  background: transparent;
+  padding: 9px;
+  color: var(--ink);
+  cursor: pointer;
+}
+.mock-history span {
+  color: #356451;
+}
+.mock-history strong,
+.mock-history small {
+  display: block;
+}
+.mock-history strong {
+  font-size: 11px;
+}
+.mock-history small,
+.mock-history em {
+  font-size: 9px;
+  color: var(--muted);
+  font-style: normal;
+}
+.mock-history em {
+  margin-left: auto;
+}
+@media (max-width: 760px) {
+  .mock-exam-head {
+    align-items: start;
+    flex-wrap: wrap;
+  }
+  .mock-exam-layout,
+  .mock-builder-grid {
+    grid-template-columns: 1fr;
+  }
+  .mock-question-nav {
+    border-right: 0;
+    border-bottom: 1px solid var(--line);
+    display: flex;
+    overflow: auto;
+  }
+  .mock-question-nav button {
+    min-width: 72px;
+    border: 0;
+  }
+  .mock-clock {
+    margin-left: auto;
+  }
+  .mock-problem {
+    padding: 16px;
+  }
+  .mock-answer > div {
+    flex-wrap: wrap;
+  }
+  .mock-answer small {
+    width: 100%;
+  }
+}
 /* 试卷式题面：模考作答区呈现为真实卷面 */
-.mock-problem{background:#fffdf8;box-shadow:var(--shadow)}
-.mock-problem::before{content:"EUCLID MATHEMATICS CONTEST · MOCK PAPER";display:block;font-family:"DM Serif Display",serif;font-size:11px;letter-spacing:.18em;color:#9aa6a4;border-bottom:1px solid var(--line);padding-bottom:9px;margin-bottom:14px}
-.mock-prompt{font-size:15.5px;line-height:2}
-.mock-problem-meta span{font-size:10px;border-radius:2px}
-.ai-compose-button{border-color:var(--navy);color:var(--navy);background:var(--navy-soft)}
+.mock-problem {
+  background: #fffdf8;
+  box-shadow: var(--shadow);
+}
+.mock-problem::before {
+  content: "EUCLID MATHEMATICS CONTEST · MOCK PAPER";
+  display: block;
+  font-family: "DM Serif Display", serif;
+  font-size: 11px;
+  letter-spacing: 0.18em;
+  color: #9aa6a4;
+  border-bottom: 1px solid var(--line);
+  padding-bottom: 9px;
+  margin-bottom: 14px;
+}
+.mock-prompt {
+  font-size: 15.5px;
+  line-height: 2;
+}
+.mock-problem-meta span {
+  font-size: 10px;
+  border-radius: 2px;
+}
+.ai-compose-button {
+  border-color: var(--navy);
+  color: var(--navy);
+  background: var(--navy-soft);
+}

@@ -7,9 +7,9 @@ My Euclid 采用**本地优先、云端能力按需启用**的架构。题库、
 | 层 | 计划技术 | 职责 |
 | --- | --- | --- |
 | 桌面壳 | Electron `arm64` | 原生文件选择、摄像头、文件系统、Keychain、DMG 打包。 |
-| 界面 | React + TypeScript + Tailwind | 档案工作台、题面、手写板、训练流和报告。 |
-| 数学排版 | KaTeX / MathJax | LaTeX 题面、公式输入、解答显示。 |
-| 本地数据 | SQLite + Drizzle ORM（计划） | 结构化题库、标签、训练历史、IRT 参数与索引。 |
+| 界面 | React + TypeScript（手写 CSS） | 档案工作台、题面、手写板、训练流和报告。 |
+| 数学排版 | KaTeX（已接入） | 题面中的 LaTeX 片段渲染为公式；无公式或渲染失败时原样显示。 |
+| 本地数据 | SQLite（better-sqlite3，手写 SQL + PRAGMA user_version 迁移） | 结构化题库、标签、训练历史、IRT 参数与索引；实现按域拆分在 `electron/db/`。有意不引入 ORM（见 AI-HANDOFF 硬性规则）。 |
 | 文件存储 | 应用数据目录 | 原件、切图、手写笔迹、照片、导出档案。 |
 | AI 适配器 | 可替换 Provider 接口 | OCR、结构化切分、判卷、讲解、相似题和标签建议。 |
 
