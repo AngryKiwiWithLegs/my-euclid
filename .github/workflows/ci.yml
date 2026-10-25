@@ -29,6 +29,9 @@ jobs:
       - name: 格式检查
         run: pnpm exec prettier --check .
 
+      - name: Lint
+        run: pnpm lint --max-warnings 6
+
       - name: 类型检查
         run: pnpm check
 

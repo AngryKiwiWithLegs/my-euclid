@@ -7,16 +7,16 @@ import { useState } from "react";
 import { api, isDesktop } from "@/lib/api";
 import { answerFormatName } from "@/lib/ui";
 import "./AiAssessmentWizard.css";
+import { useNotify } from "@/lib/toast";
 
 export function AiAssessmentWizard({
   sessions,
   onCreated,
-  notify,
 }: {
   sessions: MyEuclidPracticeSession[];
   onCreated: () => Promise<void>;
-  notify: (message: string) => void;
 }) {
+  const notify = useNotify();
   const [sessionId, setSessionId] = useState("");
   const [responseId, setResponseId] = useState("");
   const [scoreMaximum, setScoreMaximum] = useState(10);

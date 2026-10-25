@@ -17,31 +17,24 @@ import { MathText } from "@/components/MathText";
 import { MockExamWorkspace } from "@/components/MockExamWorkspace";
 import { api, isDesktop, runAction } from "@/lib/api";
 import { demoTasks } from "@/lib/demoQuestions";
-import type { Notify } from "@/lib/views";
 import "@/components/TrainingHub.css";
+import { useNotify } from "@/lib/toast";
 
 export function TrainingHub({
   initialId,
   backToLibrary,
   onSubmit,
-  notify,
 }: {
   initialId: string;
   backToLibrary: () => void;
   onSubmit: () => void;
-  notify: Notify;
 }) {
   const [mode, setMode] = useState<"single" | "mock" | "adaptive">(() =>
     initialId === "__mock_exam__" ? "mock" : "single"
   );
   const [selectedId, setSelectedId] = useState(initialId);
   if (mode === "mock")
-    return (
-      <MockExamWorkspace
-        backToSingle={() => setMode("single")}
-        notify={notify}
-      />
-    );
+    return <MockExamWorkspace backToSingle={() => setMode("single")} />;
   if (mode === "adaptive")
     return (
       <AdaptiveTrainingWorkspace
@@ -50,7 +43,6 @@ export function TrainingHub({
           setSelectedId(id);
           setMode("single");
         }}
-        notify={notify}
       />
     );
   return (
@@ -66,7 +58,6 @@ export function TrainingHub({
         initialId={selectedId}
         backToLibrary={backToLibrary}
         onSubmit={onSubmit}
-        notify={notify}
       />
     </>
   );
@@ -135,17 +126,35 @@ function toDemoTrainingTask(initialId: string): DemoTrainingTask {
   };
 }
 
+/** 会话计时器：隔离在小组件内，每秒重渲染不波及题面与作答区。 */
+function SessionClock() {
+  const [startedAt] = useState(() => Date.now());
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => {
+    const timer = window.setInterval(() => setNow(Date.now()), 1000);
+    return () => window.clearInterval(timer);
+  }, []);
+  const seconds = Math.floor((now - startedAt) / 1000);
+  const elapsed = `${String(Math.floor(seconds / 60)).padStart(2, "0")}:${String(seconds % 60).padStart(2, "0")}`;
+  return (
+    <div className="timer-block">
+      <Clock3 size={18} />
+      <strong>{elapsed}</strong>
+      <span>本次会话</span>
+    </div>
+  );
+}
+
 export function TrainingView({
   initialId,
   backToLibrary,
   onSubmit,
-  notify,
 }: {
   initialId: string;
   backToLibrary: () => void;
   onSubmit: () => void;
-  notify: Notify;
 }) {
+  const notify = useNotify();
   const [mode, setMode] = useState<AnswerMode>(() =>
     new URLSearchParams(window.location.search).get("mode") === "ink"
       ? "ink"
@@ -189,7 +198,6 @@ export function TrainingView({
     if (bankQuestion) return toTrainingTask(bankQuestion);
     if (isDesktop && loadingTask) return null;
     return toDemoTrainingTask(initialId);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [bankQuestion, loadingTask, initialId]);
 
   const save = (status: "draft" | "submitted") =>
@@ -289,11 +297,7 @@ export function TrainingView({
           <p className="eyebrow">TRAINING SESSION · {task.id}</p>
           <h2>{task.heading}</h2>
         </div>
-        <div className="timer-block">
-          <Clock3 size={18} />
-          <strong>00:00</strong>
-          <span>本次会话</span>
-        </div>
+        <SessionClock />
       </div>
       <div className="training-grid">
         <article className="problem-sheet">

@@ -70,7 +70,6 @@ async function createManifest(
     "database/my-euclid.sqlite",
     ...archiveFiles.map(file => path.join("archive", file)),
   ];
-  const root = path.dirname(databaseCopy);
   const hashes = await Promise.all(
     files.map(async file => {
       const filePath = file.startsWith("database/")

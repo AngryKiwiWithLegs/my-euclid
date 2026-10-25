@@ -2,16 +2,11 @@
 import { useState } from "react";
 import { ChevronRight, Download, Upload, X } from "lucide-react";
 import { api, runAction } from "@/lib/api";
-import type { Notify } from "@/lib/views";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useNotify } from "@/lib/toast";
 
-export function BackupModal({
-  onClose,
-  notify,
-}: {
-  onClose: () => void;
-  notify: Notify;
-}) {
+export function BackupModal({ onClose }: { onClose: () => void }) {
+  const notify = useNotify();
   const [selection, setSelection] = useState<MyEuclidBackupSelection | null>(
     null
   );

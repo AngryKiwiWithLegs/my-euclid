@@ -23,7 +23,6 @@ import type {
   AutoReviewDocumentResult,
   AutoReviewSummary,
   MockExamComposeInput,
-  PublishQuestionDraftInput,
   QuestionBankMetadataInput,
   QuestionDraft,
   VariantGenerateInput,

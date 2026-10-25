@@ -90,7 +90,7 @@ export function createMockExam(app: App, input: CreateMockExamInput) {
     rows as Array<Record<string, unknown>>
   );
   const now = new Date().toISOString();
-  const examId = crypto.randomUUID();
+  const examId = randomUUID();
   const durationSeconds = input.durationSeconds ?? 150 * 60;
   if (
     !Number.isInteger(durationSeconds) ||
@@ -109,7 +109,7 @@ export function createMockExam(app: App, input: CreateMockExamInput) {
       `INSERT INTO mock_exam_items (id, exam_id, question_id, practice_session_id, ordinal, maximum_points, title_snapshot, label_snapshot, prompt_snapshot, primary_topic_snapshot, difficulty_snapshot) VALUES (@id, @examId, @questionId, @sessionId, @ordinal, @maximumPoints, @title, @label, @promptText, @primaryTopic, @difficulty)`
     );
     questions.forEach((question, index) => {
-      const sessionId = crypto.randomUUID();
+      const sessionId = randomUUID();
       insertSession.run({
         id: sessionId,
         referenceKey: `mock:${examId}:q:${index + 1}`,
@@ -117,7 +117,7 @@ export function createMockExam(app: App, input: CreateMockExamInput) {
         now,
       });
       insertItem.run({
-        id: crypto.randomUUID(),
+        id: randomUUID(),
         examId,
         questionId: question.id,
         sessionId,

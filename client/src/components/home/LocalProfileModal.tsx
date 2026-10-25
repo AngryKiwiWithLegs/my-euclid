@@ -2,20 +2,19 @@
 import { useState } from "react";
 import { Check, X } from "lucide-react";
 import { STORAGE_KEYS } from "@/lib/constants";
-import type { Notify } from "@/lib/views";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useNotify } from "@/lib/toast";
 
 export function LocalProfileModal({
   currentName,
   onClose,
   onSaved,
-  notify,
 }: {
   currentName: string;
   onClose: () => void;
   onSaved: (name: string) => void;
-  notify: Notify;
 }) {
+  const notify = useNotify();
   const [name, setName] = useState(currentName);
   const dialogRef = useDialogA11y(onClose);
   const save = () => {

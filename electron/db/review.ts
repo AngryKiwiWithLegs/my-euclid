@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { App } from "electron";
 import { getDatabase } from "./connection.js";
 import type {
@@ -67,7 +68,7 @@ export function createDocumentPages(
     VALUES (@id, @sourceDocumentId, @pageNumber, @ocrText, @ocrStatus, 'needs_review', @now, @now)`);
   const create = db.transaction(() => {
     for (const page of pages)
-      insert.run({ id: crypto.randomUUID(), sourceDocumentId, ...page, now });
+      insert.run({ id: randomUUID(), sourceDocumentId, ...page, now });
   });
   create();
 }
@@ -195,7 +196,7 @@ export function saveOcrRegionRun(
   }
 ): OcrRegion {
   const db = getDatabase(app);
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   const createdAt = new Date().toISOString();
   db.prepare(
     `INSERT INTO ocr_region_runs (id, page_id, x, y, width, height, source_width, source_height, crop_sha256, crop_preview_data_url, ocr_text, ocr_status, created_at)
@@ -258,7 +259,7 @@ export function saveQuestionDrafts(
       VALUES (@id, @questionId, @ordinal, @label, @text, 'confirmed', @now, @now)
       ON CONFLICT(id) DO UPDATE SET question_draft_id = excluded.question_draft_id, ordinal = excluded.ordinal, label = excluded.label, prompt_text = excluded.prompt_text, review_status = 'confirmed', updated_at = excluded.updated_at`);
     questions.forEach(question => {
-      const questionId = question.id ?? crypto.randomUUID();
+      const questionId = question.id ?? randomUUID();
       questionInsert.run({
         ...question,
         id: questionId,
@@ -268,7 +269,7 @@ export function saveQuestionDrafts(
       question.subquestions.forEach(subquestion =>
         subquestionInsert.run({
           ...subquestion,
-          id: subquestion.id ?? crypto.randomUUID(),
+          id: subquestion.id ?? randomUUID(),
           questionId,
           now,
         })

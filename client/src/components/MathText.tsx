@@ -9,7 +9,7 @@ import "katex/dist/katex.min.css";
 const MATH_SEGMENTS =
   /(\$\$[\s\S]+?\$\$|\$[^$\n]+?\$|\\\[[\s\S]+?\\\]|\\\([\s\S]+?\\\))/g;
 
-function renderSegment(segment: string, key: number): string {
+function renderSegment(segment: string): string {
   const isBlock = segment.startsWith("$$") || segment.startsWith("\\[");
   const source = segment.slice(2, segment.length - (isBlock ? 2 : 1)).trim();
   try {
@@ -28,7 +28,7 @@ function renderMathHtml(text: string): string {
     .split(MATH_SEGMENTS)
     .map((segment, index) =>
       index % 2 === 1
-        ? renderSegment(segment, index)
+        ? renderSegment(segment)
         : segment
             .replace(/&/g, "&amp;")
             .replace(/</g, "&lt;")

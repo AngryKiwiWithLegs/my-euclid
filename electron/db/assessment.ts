@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { App } from "electron";
 import { getDatabase } from "./connection.js";
 import type {
@@ -64,7 +65,7 @@ function saveAssessmentRecordWithOrigin(
     )
     .get(input.responseId, input.sessionId);
   if (!response) throw new Error("所选答卷版本不属于当前训练会话。");
-  const assessmentId = crypto.randomUUID();
+  const assessmentId = randomUUID();
   const transaction = db.transaction(() => {
     const version =
       (
@@ -102,7 +103,7 @@ function saveAssessmentRecordWithOrigin(
     );
     for (const item of input.evidence)
       evidence.run(
-        crypto.randomUUID(),
+        randomUUID(),
         assessmentId,
         item.criterion.slice(0, 500),
         item.maximumPoints,
@@ -113,7 +114,7 @@ function saveAssessmentRecordWithOrigin(
       );
     for (const item of input.mistakes)
       mistakes.run(
-        crypto.randomUUID(),
+        randomUUID(),
         assessmentId,
         item.category,
         item.module.slice(0, 180),
@@ -123,7 +124,7 @@ function saveAssessmentRecordWithOrigin(
       );
     for (const item of input.modules)
       modules.run(
-        crypto.randomUUID(),
+        randomUUID(),
         assessmentId,
         item.module.slice(0, 180),
         item.awardedPoints,
@@ -271,7 +272,7 @@ export function writeBackupAudit(
       `INSERT INTO backup_audits (id, action, backup_id, status, summary_json, created_at) VALUES (?, ?, ?, ?, ?, ?)`
     )
     .run(
-      crypto.randomUUID(),
+      randomUUID(),
       action,
       backupId,
       status,

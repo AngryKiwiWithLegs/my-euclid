@@ -1,9 +1,9 @@
 /**
  * 欧几里得档案室：应用首页。
- * Home 只负责视图路由、全局刷新与 toast；各视图实现位于 components/home/。
+ * Home 只负责视图路由与全局刷新；通知经由 lib/toast 全局 store。
  */
-import { useEffect, useRef, useState } from "react";
-import { ArrowUpRight, ChevronDown, GraduationCap } from "lucide-react";
+import { useEffect, useState } from "react";
+import { ArrowUpRight, ChevronDown } from "lucide-react";
 import { BackupModal } from "@/components/home/BackupModal";
 import { Dashboard } from "@/components/home/Dashboard";
 import { ImportModal } from "@/components/home/ImportModal";
@@ -19,7 +19,8 @@ import {
 import { AiProvidersWorkspace } from "@/components/AiProvidersWorkspace";
 import { api, isDesktop, toUserMessage } from "@/lib/api";
 import { DEMO_QUESTION_ID, STORAGE_KEYS, readLocalFlag } from "@/lib/constants";
-import type { ImportKind, Notify, View } from "@/lib/views";
+import { useNotify } from "@/lib/toast";
+import type { ImportKind, View } from "@/lib/views";
 
 const viewByParam: Record<string, View> = {
   library: "library",
@@ -41,8 +42,6 @@ export default function Home() {
   const [trainingId, setTrainingId] = useState(DEMO_QUESTION_ID);
   const [backupOpen, setBackupOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
-  const [toast, setToast] = useState<string | null>(null);
-  const toastTimer = useRef<number | undefined>(undefined);
   const [localUserName, setLocalUserName] = useState(() => {
     try {
       return (
@@ -66,11 +65,7 @@ export default function Home() {
   const [assessmentDashboard, setAssessmentDashboard] =
     useState<MyEuclidAssessmentDashboard | null>(null);
 
-  const notify: Notify = (message, duration = 3500) => {
-    setToast(message);
-    window.clearTimeout(toastTimer.current);
-    toastTimer.current = window.setTimeout(() => setToast(null), duration);
-  };
+  const notify = useNotify();
   const refreshImportJobs = async () => {
     if (!isDesktop) return;
     try {
@@ -169,7 +164,6 @@ export default function Home() {
         return (
           <ReviewWorkbench
             documents={reviewDocuments}
-            notify={notify}
             refreshDocuments={refreshReviewDocuments}
           />
         );
@@ -181,7 +175,6 @@ export default function Home() {
             onSubmit={() =>
               notify("作答已提交；后续可在错题证据和报告中继续复盘")
             }
-            notify={notify}
           />
         );
       case "evidence":
@@ -190,14 +183,13 @@ export default function Home() {
             sessions={assessmentSessions}
             records={assessmentRecords}
             refresh={refreshAssessments}
-            notify={notify}
             openAiSettings={() => setActive("ai")}
           />
         );
       case "reports":
         return <ReportsWorkspace dashboard={assessmentDashboard} />;
       case "ai":
-        return <AiProvidersWorkspace notify={notify} />;
+        return <AiProvidersWorkspace />;
       default:
         return (
           <Dashboard
@@ -241,26 +233,17 @@ export default function Home() {
         <ImportModal
           kind={importKind}
           onClose={() => setImportKind(null)}
-          onCompleted={notify}
           openTraining={() => openTraining()}
           desktopImport={desktopImport}
         />
       )}
-      {backupOpen && (
-        <BackupModal onClose={() => setBackupOpen(false)} notify={notify} />
-      )}
+      {backupOpen && <BackupModal onClose={() => setBackupOpen(false)} />}
       {profileOpen && (
         <LocalProfileModal
           currentName={localUserName}
           onClose={() => setProfileOpen(false)}
           onSaved={setLocalUserName}
-          notify={notify}
         />
-      )}
-      {toast && (
-        <div className="toast" role="status">
-          <GraduationCap size={17} /> {toast}
-        </div>
       )}
     </div>
   );

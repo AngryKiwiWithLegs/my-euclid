@@ -13,8 +13,9 @@ import {
 import { api, isDesktop, runAction } from "@/lib/api";
 import { MOCK_EXAM } from "@/lib/constants";
 import { mockExamStatusName } from "@/lib/ui";
-import type { Notify } from "@/lib/views";
 import "./MockExamWorkspace.css";
+import { ConfirmDialog } from "@/components/ConfirmDialog";
+import { useNotify } from "@/lib/toast";
 
 const formatRemaining = (seconds: number) =>
   `${String(Math.max(0, Math.floor(seconds / 3600))).padStart(2, "0")}:${String(Math.max(0, Math.floor((seconds % 3600) / 60))).padStart(2, "0")}:${String(Math.max(0, seconds % 60)).padStart(2, "0")}`;
@@ -47,13 +48,12 @@ function MockExamAnswer({
   exam,
   item,
   onSaved,
-  notify,
 }: {
   exam: MyEuclidMockExam;
   item: MyEuclidMockExamItem;
   onSaved: () => Promise<void>;
-  notify: Notify;
 }) {
+  const notify = useNotify();
   const [answer, setAnswer] = useState("");
   const [busy, setBusy] = useState(false);
   const save = (status: "draft" | "submitted") =>
@@ -118,11 +118,10 @@ function MockExamAnswer({
 
 export function MockExamWorkspace({
   backToSingle,
-  notify,
 }: {
   backToSingle: () => void;
-  notify: Notify;
 }) {
+  const notify = useNotify();
   const [questions, setQuestions] = useState<MyEuclidQuestionBankQuestion[]>(
     []
   );
@@ -134,6 +133,7 @@ export function MockExamWorkspace({
     () => `Euclid 全真模拟 · ${new Date().toLocaleDateString("zh-CN")}`
   );
   const [busy, setBusy] = useState(false);
+  const [confirmSubmit, setConfirmSubmit] = useState(false);
   const [composing, setComposing] = useState(false);
   const refresh = async () => {
     if (!isDesktop) return;
@@ -218,12 +218,11 @@ export function MockExamWorkspace({
     });
   const submit = async () => {
     if (!isDesktop || !exam) return;
-    if (
-      !window.confirm(
-        "确认交卷？交卷后模考会锁定为已提交状态，但既有作答版本会保留。"
-      )
-    )
-      return;
+    setConfirmSubmit(true);
+  };
+  const submitConfirmed = async () => {
+    if (!exam) return;
+    setConfirmSubmit(false);
     try {
       setBusy(true);
       const next = await api().mockExam.submit(exam.id);
@@ -319,15 +318,20 @@ export function MockExamWorkspace({
               </div>
               <h2>{item.title || item.label}</h2>
               <p className="mock-prompt">{item.promptText}</p>
-              <MockExamAnswer
-                exam={exam}
-                item={item}
-                onSaved={refresh}
-                notify={notify}
-              />
+              <MockExamAnswer exam={exam} item={item} onSaved={refresh} />
             </main>
           )}
         </div>
+        {confirmSubmit && (
+          <ConfirmDialog
+            title="确认交卷"
+            message="交卷后模考会锁定为已提交状态，但既有作答版本会保留。"
+            confirmLabel="交卷并进入评分"
+            busy={busy}
+            onConfirm={() => void submitConfirmed()}
+            onClose={() => setConfirmSubmit(false)}
+          />
+        )}
       </div>
     );
   }

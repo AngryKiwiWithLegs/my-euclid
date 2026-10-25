@@ -2,10 +2,11 @@
  * 欧几里得档案室：题库发布必须由审核后的草案与人工训练元数据共同构成。
  * 页面只调用受限本地 IPC；来源、题面和小问均保持到原始 OCR 草案的回链。
  */
-import { CheckCircle2, Plus, Send, X } from "lucide-react";
+import { Send, X } from "lucide-react";
 import { useEffect, useState } from "react";
 import { api, isDesktop } from "@/lib/api";
 import "./QuestionPublishPanel.css";
+import { useNotify } from "@/lib/toast";
 
 type PublishDraft = MyEuclidQuestionPublishInput["metadata"];
 const split = (value: string) =>
@@ -42,14 +43,13 @@ export function QuestionPublishPanel({
   drafts,
   onPublished,
   onClose,
-  notify,
 }: {
   sourceDocumentId: string;
   drafts: MyEuclidQuestionDraft[];
   onPublished: () => Promise<void>;
   onClose: () => void;
-  notify: (message: string) => void;
 }) {
+  const notify = useNotify();
   const [metadata, setMetadata] = useState<Record<string, PublishDraft>>({});
   const [busy, setBusy] = useState(false);
   // 仅在切换资料时初始化元数据；草案编辑（drafts 引用变化）不得重置用户已填写的字段。

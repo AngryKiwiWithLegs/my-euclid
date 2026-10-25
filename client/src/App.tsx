@@ -3,6 +3,7 @@ import NotFound from "@/pages/NotFound";
 import { Route, Router as WouterRouter, Switch } from "wouter";
 import { useHashLocation } from "wouter/use-hash-location";
 import ErrorBoundary from "./components/ErrorBoundary";
+import { ToastHost } from "./components/ToastHost";
 import Home from "./pages/Home";
 
 function AppRoutes() {
@@ -24,5 +25,10 @@ export default function App() {
   ) : (
     <AppRoutes />
   );
-  return <ErrorBoundary>{routes}</ErrorBoundary>;
+  return (
+    <ErrorBoundary>
+      {routes}
+      <ToastHost />
+    </ErrorBoundary>
+  );
 }

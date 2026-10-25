@@ -3,7 +3,6 @@ import type { App } from "electron";
 import { getDatabase } from "./connection.js";
 import { getPracticeSession } from "./practice.js";
 import type {
-  InkLayer,
   InkResponseDetail,
   InkSaveResult,
   InkStroke,
@@ -16,7 +15,7 @@ export function saveInkResponse(
 ): InkSaveResult {
   const db = getDatabase(app);
   const now = new Date().toISOString();
-  const sessionId = input.sessionId ?? crypto.randomUUID();
+  const sessionId = input.sessionId ?? randomUUID();
   let responseId = "";
   const transaction = db.transaction(() => {
     const existing = db
@@ -34,7 +33,7 @@ export function saveInkResponse(
           )
           .get(sessionId) as { value: number }
       ).value + 1;
-    responseId = crypto.randomUUID();
+    responseId = randomUUID();
     const strokeCount = input.layers.reduce(
       (sum, layer) => sum + layer.strokes.length,
       0
@@ -66,7 +65,7 @@ export function saveInkResponse(
       `INSERT INTO ink_strokes (id, layer_id, ordinal, tool, color, width, points_json, created_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     );
     for (const layer of input.layers) {
-      const layerId = layer.id ?? crypto.randomUUID();
+      const layerId = layer.id ?? randomUUID();
       insertLayer.run(
         layerId,
         responseId,
@@ -78,7 +77,7 @@ export function saveInkResponse(
       );
       for (const stroke of layer.strokes)
         insertStroke.run(
-          stroke.id ?? crypto.randomUUID(),
+          stroke.id ?? randomUUID(),
           layerId,
           stroke.ordinal,
           stroke.tool,
@@ -91,7 +90,7 @@ export function saveInkResponse(
     db.prepare(
       `INSERT INTO ink_snapshots (id, response_id, canvas_width, canvas_height, preview_svg, created_at) VALUES (?, ?, ?, ?, ?, ?)`
     ).run(
-      crypto.randomUUID(),
+      randomUUID(),
       responseId,
       input.canvasWidth,
       input.canvasHeight,

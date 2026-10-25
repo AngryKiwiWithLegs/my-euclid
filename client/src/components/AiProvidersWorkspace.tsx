@@ -21,6 +21,7 @@ import { useEffect, useState } from "react";
 import { api, isDesktop } from "@/lib/api";
 import { AiProvidersBrowserDemo } from "./AiProvidersBrowserDemo";
 import "./AiProvidersWorkspace.css";
+import { useNotify } from "@/lib/toast";
 
 type ProviderDraft = {
   id?: string;
@@ -38,26 +39,8 @@ const emptyDraft = (): ProviderDraft => ({
   enabled: true,
 });
 
-function DesktopOnly() {
-  return (
-    <div className="view-shell">
-      <div className="review-empty">
-        <Sparkles size={32} />
-        <h3>浏览器预览不访问 AI 服务配置。</h3>
-        <p>
-          请通过 <code>pnpm dev:desktop</code> 启动桌面版本。提供商与密钥仅在
-          macOS Keychain 可用的桌面环境中管理。
-        </p>
-      </div>
-    </div>
-  );
-}
-
-export function AiProvidersWorkspace({
-  notify,
-}: {
-  notify: (message: string) => void;
-}) {
+export function AiProvidersWorkspace() {
+  const notify = useNotify();
   const [registry, setRegistry] = useState<MyEuclidAiProviderRegistry | null>(
     null
   );
@@ -73,7 +56,7 @@ export function AiProvidersWorkspace({
   useEffect(() => {
     void refresh();
   }, []);
-  if (!isDesktop) return <AiProvidersBrowserDemo notify={notify} />;
+  if (!isDesktop) return <AiProvidersBrowserDemo />;
   const mutate = async (
     work: () => Promise<MyEuclidAiProviderRegistry>,
     success: string

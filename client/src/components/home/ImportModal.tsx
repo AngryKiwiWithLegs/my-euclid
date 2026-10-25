@@ -11,22 +11,22 @@ import {
   X,
 } from "lucide-react";
 import { isDesktop, toUserMessage } from "@/lib/api";
-import type { ImportKind, Notify } from "@/lib/views";
+import type { ImportKind } from "@/lib/views";
 import { useDialogA11y } from "@/hooks/useDialogA11y";
+import { useNotify } from "@/lib/toast";
 
 export function ImportModal({
   kind,
   onClose,
-  onCompleted,
   openTraining,
   desktopImport,
 }: {
   kind: Exclude<ImportKind, null>;
   onClose: () => void;
-  onCompleted: Notify;
   openTraining: () => void;
   desktopImport: (kind: MyEuclidImportKind) => Promise<number>;
 }) {
+  const notify = useNotify();
   const [fileName, setFileName] = useState("");
   const [step, setStep] = useState(1);
   const [isImporting, setIsImporting] = useState(false);
@@ -44,10 +44,7 @@ export function ImportModal({
     if (!isDesktop) {
       setStep(2);
       window.setTimeout(
-        () =>
-          onCompleted(
-            isPaper ? "纸质答卷演示任务已建立" : "资料演示任务已建立"
-          ),
+        () => notify(isPaper ? "纸质答卷演示任务已建立" : "资料演示任务已建立"),
         350
       );
       return;
@@ -59,7 +56,7 @@ export function ImportModal({
       );
       if (!count) return;
       setStep(2);
-      onCompleted(
+      notify(
         isPaper
           ? `已归档 ${count} 份纸质答卷，等待题号审核`
           : `已归档 ${count} 份资料，等待 OCR 与切分审核`

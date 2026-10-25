@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import Database from "better-sqlite3";
 import type { App } from "electron";
 import { getDatabase } from "./connection.js";
@@ -6,7 +7,6 @@ import type {
   QuestionBankFilter,
   QuestionBankQuestion,
   QuestionBankStatus,
-  QuestionDraft,
 } from "../types.js";
 
 function parseJsonList(value: string | null | undefined) {
@@ -182,7 +182,7 @@ export function publishQuestionDrafts(
         throw new Error("题目满分必须为正数且不超过 100。");
       const id =
         (findBank.get(draft.id) as { id: string } | undefined)?.id ??
-        crypto.randomUUID();
+        randomUUID();
       upsert.run({
         id,
         sourceQuestionDraftId: draft.id,
@@ -216,7 +216,7 @@ export function publishQuestionDrafts(
         )
           throw new Error("小问来源不属于当前题目草案。");
         insertSub.run({
-          id: crypto.randomUUID(),
+          id: randomUUID(),
           questionId: id,
           sourceSubquestionDraftId:
             subquestion.sourceSubquestionDraftId ?? null,
@@ -230,7 +230,7 @@ export function publishQuestionDrafts(
       meta.tags.forEach(tag => {
         if (tag.category.trim() && tag.value.trim())
           insertTag.run({
-            id: crypto.randomUUID(),
+            id: randomUUID(),
             questionId: id,
             category: tag.category.trim(),
             value: tag.value.trim(),

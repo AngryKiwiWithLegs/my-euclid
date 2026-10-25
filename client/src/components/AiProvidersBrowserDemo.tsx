@@ -17,6 +17,7 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 import "./AiProvidersBrowserDemo.css";
+import { useNotify } from "@/lib/toast";
 
 type DemoProvider = {
   id: string;
@@ -33,11 +34,8 @@ const emptyProvider = (): Omit<DemoProvider, "id" | "isDefault"> => ({
   enabled: true,
 });
 
-export function AiProvidersBrowserDemo({
-  notify,
-}: {
-  notify: (message: string) => void;
-}) {
+export function AiProvidersBrowserDemo() {
+  const notify = useNotify();
   const [providers, setProviders] = useState<DemoProvider[]>([
     {
       id: "browser-demo",

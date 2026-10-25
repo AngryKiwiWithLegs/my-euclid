@@ -68,7 +68,7 @@ describe("parseJson", () => {
   });
 
   it("从夹杂文本中截取首尾花括号之间的内容", () => {
-    expect(parseJson(`说明文字 {\"a\":1} 尾部`)).toEqual({ a: 1 });
+    expect(parseJson(`说明文字 {"a":1} 尾部`)).toEqual({ a: 1 });
   });
 
   it("无 JSON 内容时抛错", () => {

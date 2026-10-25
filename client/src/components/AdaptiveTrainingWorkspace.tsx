@@ -11,6 +11,7 @@ import {
 import { useEffect, useMemo, useState } from "react";
 import { api, isDesktop } from "@/lib/api";
 import "./AdaptiveTrainingWorkspace.css";
+import { useNotify } from "@/lib/toast";
 
 const reasonText = {
   upstream: "先补上游依赖",
@@ -22,12 +23,11 @@ const reasonText = {
 export function AdaptiveTrainingWorkspace({
   backToSingle,
   openQuestion,
-  notify,
 }: {
   backToSingle: () => void;
   openQuestion: (id: string) => void;
-  notify: (message: string) => void;
 }) {
+  const notify = useNotify();
   const [profile, setProfile] = useState<MyEuclidAdaptiveProfile | null>(null);
   const [questions, setQuestions] = useState<MyEuclidQuestionBankQuestion[]>(
     []

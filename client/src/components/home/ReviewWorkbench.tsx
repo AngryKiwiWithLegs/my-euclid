@@ -16,18 +16,17 @@ import { OcrRegionSelector } from "@/components/OcrRegionSelector";
 import { QuestionPublishPanel } from "@/components/QuestionPublishPanel";
 import { api, isDesktop, runAction, toUserMessage } from "@/lib/api";
 import { STORAGE_KEYS, readLocalFlag, writeLocalFlag } from "@/lib/constants";
-import type { Notify } from "@/lib/views";
 import { SectionTitle } from "./shared";
+import { useNotify } from "@/lib/toast";
 
 export function ReviewWorkbench({
   documents,
-  notify,
   refreshDocuments,
 }: {
   documents: MyEuclidReviewDocumentSummary[];
-  notify: Notify;
   refreshDocuments: () => Promise<void>;
 }) {
+  const notify = useNotify();
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [detail, setDetail] = useState<MyEuclidReviewDocumentDetail | null>(
     null
@@ -520,7 +519,6 @@ export function ReviewWorkbench({
                       setDetail(next);
                       setDrafts(next?.questions ?? []);
                     }}
-                    notify={notify}
                   />
                 </div>
               )}

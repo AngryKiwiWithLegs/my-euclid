@@ -14,7 +14,7 @@ export function savePracticeResponse(
 ): PracticeSessionDetail {
   const db = getDatabase(app);
   const now = new Date().toISOString();
-  const sessionId = input.sessionId ?? crypto.randomUUID();
+  const sessionId = input.sessionId ?? randomUUID();
   const transaction = db.transaction(() => {
     const existing = db
       .prepare("SELECT id FROM practice_sessions WHERE id = ?")
@@ -34,7 +34,7 @@ export function savePracticeResponse(
     db.prepare(
       `INSERT INTO practice_responses (id, session_id, answer_format, content, status, version, created_at, updated_at) VALUES (?, ?, ?, ?, ?, ?, ?, ?)`
     ).run(
-      crypto.randomUUID(),
+      randomUUID(),
       sessionId,
       input.answerFormat,
       input.content,
@@ -65,7 +65,7 @@ export function createPaperResponse(
 ) {
   const db = getDatabase(app);
   const now = new Date().toISOString();
-  const resolvedSessionId = sessionId || crypto.randomUUID();
+  const resolvedSessionId = sessionId || randomUUID();
   const existing = db
     .prepare("SELECT id FROM practice_sessions WHERE id = ?")
     .get(resolvedSessionId);
@@ -81,7 +81,7 @@ export function createPaperResponse(
         )
         .get(resolvedSessionId) as { value: number }
     ).value + 1;
-  const responseId = crypto.randomUUID();
+  const responseId = randomUUID();
   db.prepare(
     `INSERT INTO practice_responses (id, session_id, answer_format, content, status, version, created_at, updated_at) VALUES (?, ?, 'paper_attachment', '', 'draft', ?, ?, ?)`
   ).run(responseId, resolvedSessionId, version, now, now);

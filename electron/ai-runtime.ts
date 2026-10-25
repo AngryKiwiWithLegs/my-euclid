@@ -404,7 +404,7 @@ export async function runAuthorizedAiAssessment(
   } catch (error) {
     const message = safeFailure(error);
     updateAiRunAudit(app, auditId, { status: "failed", errorMessage: message });
-    throw new Error(message);
+    throw new Error(message, { cause: error });
   } finally {
     clearTimeout(timer);
   }
@@ -554,7 +554,7 @@ export async function runAuthorizedTutorSession(
     });
     return saveTutorPlan(app, session.id, plan);
   } catch (error) {
-    throw new Error(safeFailure(error));
+    throw new Error(safeFailure(error), { cause: error });
   } finally {
     clearTimeout(timer);
   }
@@ -622,7 +622,7 @@ export async function askTutorQuestion(
       answer.slice(0, 20_000)
     );
   } catch (error) {
-    throw new Error(safeFailure(error));
+    throw new Error(safeFailure(error), { cause: error });
   } finally {
     clearTimeout(timer);
   }

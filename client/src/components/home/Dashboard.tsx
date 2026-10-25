@@ -1,8 +1,7 @@
-/** 首页仪表盘：导入入口与演示训练队列（示例数据，不计入统计）。 */
-import { useMemo } from "react";
+/** 首页仪表盘：导入入口与训练队列（桌面端显示题库中按优先级排列的真实题目，浏览器预览降级为示例数据）。 */
+import { useEffect, useMemo, useState } from "react";
 import {
   ArrowUpRight,
-  CheckCircle2,
   Clock3,
   Download,
   FileUp,
@@ -11,9 +10,20 @@ import {
   Sparkles,
   TimerReset,
 } from "lucide-react";
+import { api, isDesktop } from "@/lib/api";
 import { demoTasks } from "@/lib/demoQuestions";
 import type { ImportKind } from "@/lib/views";
 import { Metric, SectionTitle } from "./shared";
+
+interface QueueItem {
+  id: string;
+  source: string;
+  title: string;
+  tags: string[];
+  difficulty: string;
+  points: string;
+  status: string;
+}
 
 export function Dashboard({
   openImport,
@@ -33,6 +43,59 @@ export function Dashboard({
       }).format(new Date()),
     []
   );
+  // null = 浏览器预览或仍在读取；数组 = 真实题库队列（可能为空）
+  const [queue, setQueue] = useState<QueueItem[] | null>(null);
+  useEffect(() => {
+    if (!isDesktop) {
+      setQueue([]);
+      return;
+    }
+    let cancelled = false;
+    api()
+      .library.listQuestions({ limit: 5 })
+      .then(
+        questions =>
+          !cancelled &&
+          setQueue(
+            questions.map(question => ({
+              id: question.id,
+              source: `${question.sourceName} · ${question.competitionYear ?? "—"} · ${question.label}`,
+              title: question.title || question.label,
+              tags: [
+                question.primaryTopic,
+                ...question.secondaryTopics,
+                ...question.methods,
+              ]
+                .filter(Boolean)
+                .slice(0, 3),
+              difficulty: question.difficulty
+                ? `${question.difficulty}/5`
+                : "未设定",
+              points:
+                question.maximumPoints != null
+                  ? `${question.maximumPoints} 分`
+                  : "分值未定",
+              status: "已发布",
+            }))
+          )
+      )
+      .catch(() => !cancelled && setQueue([]));
+    return () => {
+      cancelled = true;
+    };
+  }, []);
+  const isRealQueue = Boolean(queue && queue.length);
+  const rows: QueueItem[] = isRealQueue
+    ? queue!
+    : demoTasks.map(task => ({
+        id: task.id,
+        source: `${task.source} · ${task.number}`,
+        title: task.title,
+        tags: task.tags,
+        difficulty: task.difficulty,
+        points: `${task.points} 分`,
+        status: task.status,
+      }));
   return (
     <>
       <section className="intro-row">
@@ -116,22 +179,26 @@ export function Dashboard({
             eyebrow="CURATED QUEUE"
             title="训练队列"
             action={
-              <span className="queue-filter">
-                <Clock3 size={15} /> 示例队列 · 不计入数据
-              </span>
+              isRealQueue ? (
+                <span className="queue-filter">
+                  <Clock3 size={15} /> 真实题库 · 按训练优先级排序
+                </span>
+              ) : (
+                <span className="queue-filter">
+                  <Clock3 size={15} /> 示例队列 · 不计入数据
+                </span>
+              )
             }
           />
           <div className="task-list">
-            {demoTasks.map((task, index) => (
+            {rows.map((task, index) => (
               <article key={task.id} className="task-row">
                 <span
                   className={`index-bar ${index === 1 ? "vermilion" : index === 2 ? "graphite" : "navy"}`}
                 />
                 <div className="task-index">0{index + 1}</div>
                 <div className="task-content">
-                  <p>
-                    {task.source} · {task.number}
-                  </p>
+                  <p>{task.source}</p>
                   <h4>{task.title}</h4>
                   <div>
                     {task.tags.map(tag => (
@@ -144,7 +211,7 @@ export function Dashboard({
                 <div className="task-time">
                   <TimerReset size={15} />
                   <span>
-                    {task.difficulty} · {task.points} 分
+                    {task.difficulty} · {task.points}
                   </span>
                 </div>
                 <button
@@ -155,6 +222,11 @@ export function Dashboard({
                 </button>
               </article>
             ))}
+            {isRealQueue && (
+              <p className="session-hint" style={{ padding: "10px 14px" }}>
+                发布更多题目后，这里会按训练优先级展示前 5 道。
+              </p>
+            )}
           </div>
         </div>
         <EvidenceDrawer />

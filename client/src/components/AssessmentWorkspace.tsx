@@ -10,19 +10,19 @@ import {
   CircleAlert,
   FileCheck2,
   Gauge,
-  LockKeyhole,
   Plus,
   Save,
   Sparkles,
   Target,
   Trash2,
 } from "lucide-react";
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 import { AiAssessmentWizard } from "./AiAssessmentWizard";
 import { AssessmentDiffPanel } from "./AssessmentDiffPanel";
 import { api, isDesktop } from "@/lib/api";
 import { answerFormatName } from "@/lib/ui";
 import "./AssessmentWorkspace.css";
+import { useNotify } from "@/lib/toast";
 
 const categoryNames: Record<MyEuclidMistakeCategory, string> = {
   conceptual: "概念",
@@ -188,13 +188,12 @@ function AssessmentEditor({
   sessions,
   busy,
   onSaved,
-  notify,
 }: {
   sessions: MyEuclidPracticeSession[];
   busy: boolean;
   onSaved: () => Promise<void>;
-  notify: (message: string) => void;
 }) {
+  const notify = useNotify();
   const [form, setForm] = useState<FormState>(initialForm);
   const selectedSession = sessions.find(
     session => session.id === form.sessionId
@@ -767,13 +766,11 @@ export function EvidenceWorkspace({
   sessions,
   records,
   refresh,
-  notify,
   openAiSettings,
 }: {
   sessions: MyEuclidPracticeSession[];
   records: MyEuclidAssessmentRecord[];
   refresh: () => Promise<void>;
-  notify: (message: string) => void;
   openAiSettings: () => void;
 }) {
   const [selectedId, setSelectedId] = useState<string | null>(null);
@@ -824,11 +821,7 @@ export function EvidenceWorkspace({
       />
       <LocalOnlyNote />
       <AiReadiness openSettings={openAiSettings} />
-      <AiAssessmentWizard
-        sessions={sessions}
-        onCreated={refreshAll}
-        notify={notify}
-      />
+      <AiAssessmentWizard sessions={sessions} onCreated={refreshAll} />
       <div className="assessment-layout">
         <aside className="assessment-record-list">
           <div className="assessment-list-head">
@@ -864,7 +857,6 @@ export function EvidenceWorkspace({
           sessions={sessions}
           busy={saving}
           onSaved={refreshAll}
-          notify={notify}
         />
       </div>
     </div>

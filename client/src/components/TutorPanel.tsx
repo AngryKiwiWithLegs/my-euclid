@@ -13,16 +13,16 @@ import {
 import { useEffect, useState } from "react";
 import { api, isDesktop, toUserMessage } from "@/lib/api";
 import "./TutorPanel.css";
+import { useNotify } from "@/lib/toast";
 
 export function TutorPanel({
   question,
   close,
-  notify,
 }: {
   question: MyEuclidQuestionBankQuestion;
   close: () => void;
-  notify: (text: string) => void;
 }) {
+  const notify = useNotify();
   const [preview, setPreview] = useState<MyEuclidTutorPreview | null>(null);
   const [session, setSession] = useState<MyEuclidTutorSession | null>(null);
   const [busy, setBusy] = useState(false);

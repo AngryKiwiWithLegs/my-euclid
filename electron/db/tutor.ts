@@ -44,7 +44,7 @@ export function createTutorSession(
 ) {
   const db = getDatabase(app);
   const now = new Date().toISOString();
-  const id = crypto.randomUUID();
+  const id = randomUUID();
   db.prepare(
     `INSERT INTO tutor_sessions (id, question_id, provider_id, status, question_text, answer_text, created_at, updated_at) VALUES (?, ?, ?, 'active', ?, ?, ?, ?)`
   ).run(
@@ -80,7 +80,7 @@ export function appendTutorMessage(
     throw new Error("互动讲解消息无效或超过保存限制。");
   db.prepare(
     `INSERT INTO tutor_messages (id, tutor_session_id, role, content, created_at) VALUES (?, ?, ?, ?, ?)`
-  ).run(crypto.randomUUID(), sessionId, role, content.trim(), now);
+  ).run(randomUUID(), sessionId, role, content.trim(), now);
   db.prepare(`UPDATE tutor_sessions SET updated_at = ? WHERE id = ?`).run(
     now,
     sessionId

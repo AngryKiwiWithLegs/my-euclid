@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import type { App } from "electron";
 import { getDatabase } from "./connection.js";
 import { listQuestionBank } from "./questionBank.js";
@@ -21,7 +22,7 @@ export function saveKnowledgeNode(app: App, input: SaveKnowledgeNodeInput) {
   const name = input.name.trim();
   if (!name || name.length > 100 || input.description.length > 1000)
     throw new Error("知识节点名称或说明无效。");
-  const id = input.id ?? crypto.randomUUID();
+  const id = input.id ?? randomUUID();
   db.prepare(
     `INSERT INTO knowledge_nodes (id, name, description, created_at, updated_at) VALUES (?, ?, ?, ?, ?) ON CONFLICT(id) DO UPDATE SET name = excluded.name, description = excluded.description, updated_at = excluded.updated_at`
   ).run(id, name, input.description.trim(), now, now);
@@ -43,7 +44,7 @@ export function saveKnowledgeEdge(app: App, input: SaveKnowledgeEdgeInput) {
     input.strength > 1
   )
     throw new Error("知识依赖关系无效。");
-  const id = input.id ?? crypto.randomUUID();
+  const id = input.id ?? randomUUID();
   db.prepare(
     `INSERT INTO knowledge_edges (id, prerequisite_node_id, dependent_node_id, strength) VALUES (?, ?, ?, ?) ON CONFLICT(prerequisite_node_id, dependent_node_id) DO UPDATE SET strength = excluded.strength`
   ).run(id, input.prerequisiteNodeId, input.dependentNodeId, input.strength);

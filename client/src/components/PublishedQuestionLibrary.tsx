@@ -179,7 +179,6 @@ export function PublishedQuestionLibrary({
         <TutorPanel
           question={tutorQuestion}
           close={() => setTutorQuestion(null)}
-          notify={setNotice}
         />
       )}
     </>
