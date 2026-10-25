@@ -1,5 +1,8 @@
 # My Euclid
 
+[![CI](https://github.com/dfdd2001-source/my-euclid/actions/workflows/ci.yml/badge.svg)](https://github.com/dfdd2001-source/my-euclid/actions/workflows/ci.yml)
+
+
 **My Euclid** 是一个面向个人使用的 macOS 欧几里得数学竞赛备考客户端。它将本地持有的题目资料转化为可追溯、可切分、可标注、可训练的数据集，并将线上作答与纸质答卷上传放入同一套评分、分析和复盘闭环。
 
 > 当前仓库提供 **Electron 桌面壳、SQLite 本地归档与 React 工作台**。桌面模式已接入资料选择与原件归档、PDF 文本层提取、图片 OCR（英文）、扫描 PDF 页图渲染、人工审核、区域框选与局部 OCR；AI 自动审核（OCR 校对、题目切分、标签建议，默认关闭、可开关）、逐次授权的 AI 判卷、互动讲解、变式出题、AI 组卷与 IRT 自适应训练均已实现。导入方式为 macOS 原生文件选择器多选；拖拽、文件夹与 URL 导入尚未实现。

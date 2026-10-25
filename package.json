@@ -8,13 +8,14 @@
   "main": "dist/electron/main.js",
   "scripts": {
     "dev": "vite --host",
+    "test": "vitest run",
+    "build": "pnpm build:renderer && pnpm build:electron",
+    "check": "tsc --noEmit",
     "dev:desktop": "concurrently -k \"pnpm dev\" \"wait-on http://127.0.0.1:3000 && pnpm build:electron && VITE_DEV_SERVER_URL=http://127.0.0.1:3000 electron dist/electron/main.js\"",
     "build:renderer": "vite build",
     "build:electron": "esbuild electron/main.ts electron/archive.ts electron/database.ts electron/ocr.ts electron/review-media.ts electron/ai-config.ts electron/ai-runtime.ts electron/practice.ts electron/backup.ts --platform=node --packages=external --bundle --format=esm --outdir=dist/electron && esbuild electron/preload.ts --platform=node --packages=external --bundle --format=cjs --outfile=dist/electron/preload.js",
-    "build": "pnpm build:renderer && pnpm build:electron",
     "package:mac": "VITE_ELECTRON_FILE_PROTOCOL=1 pnpm build && electron-builder --mac dmg --arm64",
     "preview": "vite preview --host",
-    "check": "tsc --noEmit",
     "format": "prettier --write .",
     "rebuild:native": "electron-rebuild -f -w better-sqlite3"
   },

@@ -1,0 +1,63 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    # 与产品目标平台一致：Apple Silicon macOS
+    runs-on: macos-14
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: pnpm
+
+      - name: 安装依赖
+        run: pnpm install --frozen-lockfile
+
+      - name: 格式检查
+        run: pnpm exec prettier --check .
+
+      - name: 类型检查
+        run: pnpm check
+
+      - name: 纯函数单元测试
+        run: pnpm test
+
+      - name: 构建（渲染层 + 主进程）
+        run: pnpm build
+
+      - name: 为 Electron ABI 重建原生依赖
+        run: pnpm rebuild:native
+
+      - name: 端到端回归脚本（离线夹具）
+        run: |
+          set -e
+          for script in \
+            verify-sqlite \
+            verify-archive-flow \
+            verify-question-bank-flow \
+            verify-practice-backup \
+            verify-assessment-report \
+            verify-mock-exam-flow \
+            verify-ink-flow \
+            verify-adaptive-training-flow \
+            verify-assessment-diff-flow \
+            verify-ai-config-security \
+            verify-tutor-flow \
+            verify-region-ocr; do
+            echo "::group::$script"
+            pnpm exec electron --runAsNode "scripts/$script.mjs"
+            echo "::endgroup::"
+          done

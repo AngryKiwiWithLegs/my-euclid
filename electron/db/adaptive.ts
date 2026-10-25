@@ -114,10 +114,10 @@ export function saveQuestionIrtParameter(
     .get(input.questionId) as IrtItemParameter;
 }
 
-function logistic(value: number) {
+export function logistic(value: number) {
   return 1 / (1 + Math.exp(-Math.max(-35, Math.min(35, value))));
 }
-function questionParameter(
+export function questionParameter(
   question: QuestionBankQuestion,
   parameter?: IrtItemParameter
 ): IrtItemParameter {
@@ -132,7 +132,10 @@ function questionParameter(
     }
   );
 }
-function predictedProbability(theta: number, parameter: IrtItemParameter) {
+export function predictedProbability(
+  theta: number,
+  parameter: IrtItemParameter
+) {
   return (
     parameter.guessing +
     (1 - parameter.guessing) *

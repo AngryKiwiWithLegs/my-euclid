@@ -27,7 +27,7 @@ import type {
   TutorSession,
 } from "./types.js";
 
-type AuthorizedAssessment = AiAssessmentPreview & {
+export type AuthorizedAssessment = AiAssessmentPreview & {
   responseId: string;
   sessionId: string;
   providerId: string;
@@ -199,7 +199,7 @@ export async function prepareAiAssessment(
 function normalizeString(value: unknown, limit: number) {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
-function parseJson(content: string) {
+export function parseJson(content: string) {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? content;
   const start = fenced.indexOf("{");
   const end = fenced.lastIndexOf("}");
@@ -207,7 +207,7 @@ function parseJson(content: string) {
     throw new Error("AI 返回内容不是可解析的评分 JSON。");
   return JSON.parse(fenced.slice(start, end + 1)) as Record<string, unknown>;
 }
-function normalizeAssessment(
+export function normalizeAssessment(
   content: string,
   preview: AuthorizedAssessment
 ): SaveAssessmentInput {
@@ -410,7 +410,7 @@ export async function runAuthorizedAiAssessment(
   }
 }
 
-function normalizeTutorPlan(content: string): TutorPlan {
+export function normalizeTutorPlan(content: string): TutorPlan {
   const data = parseJson(content);
   const methods = Array.isArray(data.methods)
     ? data.methods

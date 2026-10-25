@@ -128,7 +128,7 @@ export async function exportBackup(
   return { ...manifest, outputName: path.basename(outputPath) };
 }
 
-function validateEntryName(name: string) {
+export function validateEntryName(name: string) {
   return !path.isAbsolute(name) && !name.split(/[\\/]+/).includes("..");
 }
 

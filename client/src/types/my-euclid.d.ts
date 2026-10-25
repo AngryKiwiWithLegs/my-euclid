@@ -632,9 +632,7 @@ declare global {
           questionId: string;
           count?: number;
         }) => Promise<MyEuclidQuestionBankQuestion[]>;
-        composeMockExam: (input?: {
-          title?: string;
-        }) => Promise<{
+        composeMockExam: (input?: { title?: string }) => Promise<{
           exam: MyEuclidMockExam;
           rationale: string;
           providerLabel: string;

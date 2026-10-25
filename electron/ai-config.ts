@@ -49,7 +49,7 @@ function emptyVault(): StoredAiProviderVault {
   return { schemaVersion: 2, providers: [] };
 }
 
-function validateConfig(
+export function validateConfig(
   input: AiProviderConfigInput,
   requiresKey: boolean
 ): Omit<AiProviderConfigInput, "id"> {

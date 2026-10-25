@@ -128,7 +128,7 @@ async function callAi(
   throw new Error(message);
 }
 
-function parseAiJson(content: string): Record<string, unknown> {
+export function parseAiJson(content: string): Record<string, unknown> {
   const fenced = content.match(/```(?:json)?\s*([\s\S]*?)```/i)?.[1] ?? content;
   const start = fenced.indexOf("{");
   const end = fenced.lastIndexOf("}");
@@ -137,7 +137,7 @@ function parseAiJson(content: string): Record<string, unknown> {
   return JSON.parse(fenced.slice(start, end + 1)) as Record<string, unknown>;
 }
 
-function asString(value: unknown, limit: number): string {
+export function asString(value: unknown, limit: number): string {
   return typeof value === "string" ? value.trim().slice(0, limit) : "";
 }
 
@@ -166,7 +166,7 @@ function asStringArray(
     : [];
 }
 
-function asOptionalNumber(
+export function asOptionalNumber(
   value: unknown,
   min: number,
   max: number
@@ -183,7 +183,7 @@ function asOptionalNumber(
 }
 
 /** 把 AI 返回的题目对象规范化为草案 + 发布元数据；接受多种常见字段命名。 */
-function normalizeAiQuestion(
+export function normalizeAiQuestion(
   rawQuestion: unknown,
   fallbacks: {
     pageId: string;
@@ -721,7 +721,7 @@ function buildComposePrompt(catalog: Array<Record<string, unknown>>) {
   return `你是欧几里得数学竞赛（Euclid Contest）的组卷官。真实 Euclid 卷为 10 道大题、满分 100、题目难度从易到难、覆盖代数、几何、数列、计数概率、解析几何与证明等多个模块。请从下面的题库清单中挑选恰好 10 道题组成一套模拟卷：\n- 覆盖尽可能多的不同 primary_topic，避免同 topic 超过 2 题。\n- 难度整体从易到难排列，难度和分值分布尽量接近真实卷。\n- 只能使用清单中出现的 id，不得编造。输出严格 JSON：${schema}\n\n题库清单（JSON 行）：\n${catalog.map(item => JSON.stringify(item)).join("\n")}`;
 }
 
-function fallbackSelection(
+export function fallbackSelection(
   bank: ReturnType<typeof listQuestionBank>
 ): string[] {
   const byTopic = new Map<string, ReturnType<typeof listQuestionBank>>();
